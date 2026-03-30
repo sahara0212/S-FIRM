@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Compliance Control Board 1.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #F5F5F7; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+        .apple-card { background: #fff; border-radius: 24px; border: 1px solid rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.2, 0, 0, 1); }
+        .law-item.selected { border: 2px solid #007AFF; background: #F2F7FF; box-shadow: 0 8px 20px rgba(0,122,255,0.1); }
+        .tab-btn.active { background: #000; color: #fff; border-radius: 12px; }
+        .finance-tag { background: #EBF5FF; color: #007AFF; font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 6px; }
+        .diff-panel { padding: 24px; border-radius: 20px; font-size: 13px; line-height: 1.6; }
+        .old-panel { background: #FFF5F5; color: #E03131; border: 1px solid #FFE3E3; text-decoration: line-through; }
+        .new-panel { background: #F8FFF9; color: #2B8A3E; border: 1px solid #D3F9D8; font-weight: 600; }
+    </style>
+</head>
+<body class="p-0">
+    <header class="bg-white/80 backdrop-blur-md border-b p-6 flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-xl font-black italic tracking-tighter">Compliance Control Board <span class="text-blue-600">1.0</span></h1>
+        <div class="flex bg-gray-100 p-1 rounded-xl">
+            <button onclick="switchTab('dash')" id="t-dash" class="tab-btn active px-6 py-2 text-xs font-bold">대시보드</button>
+            <button onclick="switchTab('guide')" id="t-guide" class="tab-btn px-6 py-2 text-xs font-bold text-gray-400">책무구조도 및 사규변경</button>
+        </div>
+    </header>
+
+    <main class="max-w-[1400px] mx-auto p-10">
+        <div id="view-dash" class="grid grid-cols-12 gap-8">
+            <div class="col-span-4 space-y-4">
+                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Regulatory Monitoring</h3>
+                <div id="law-feed" class="space-y-3"></div>
+            </div>
+            <div class="col-span-8">
+                <div id="detail-box" class="apple-card p-10 space-y-8 min-h-[650px] animate-fadeIn">
+                    <div class="flex justify-between items-start border-b pb-6">
+                        <div class="space-y-2">
+                            <span id="dt-risk" class="text-[9px] font-black px-3 py-1 bg-gray-100 rounded-full uppercase"></span>
+                            <h2 id="dt-title" class="text-3xl font-black tracking-tighter text-slate-900"></h2>
+                        </div>
+                    </div>
+                    <div class="p-8 bg-blue-50/50 rounded-[2rem] border border-blue-100/50">
+                        <p class="text-[10px] font-black text-blue-600 uppercase mb-3 tracking-widest italic">Strategic Insight </p>
+                        <p id="dt-insight" class="text-lg font-semibold text-slate-800 leading-snug"></p>
+                    </div>
+                    <div class="space-y-4">
+                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">신·구 조문 대조 분석 </h4>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="diff-panel old-panel" id="dt-old"></div>
+                            <div class="diff-panel new-panel" id="dt-new"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-guide" class="hidden space-y-6 animate-fadeIn">
+            <div id="guide-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+    </main>
+
+    <script>
+        let laws = [];
+        function switchTab(t) {
+            document.getElementById('view-dash').classList.toggle('hidden', t !== 'dash');
+            document.getElementById('view-guide').classList.toggle('hidden', t !== 'guide');
+            document.getElementById('t-dash').className = `tab-btn px-6 py-2 text-xs font-bold ${t==='dash'?'active':'text-gray-400'}`;
+            document.getElementById('t-guide').className = `tab-btn px-6 py-2 text-xs font-bold ${t==='guide'?'active':'text-gray-400'}`;
+        }
+
+        async function load() {
+            const res = await fetch('/api/v1/updates');
+            laws = await res.json();
+            
+            // [금융 우선순위 로직] 금융 법령을 상단으로, 나머지는 하단으로 정렬 
+            const sortedLaws = [...laws].sort((a,b) => b.is_finance - a.is_finance);
+            
+            document.getElementById('law-feed').innerHTML = sortedLaws.map(l => `
+                <div id="item-${l.id}" onclick="selectLaw('${l.id}')" class="law-item apple-card p-6 cursor-pointer">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="${l.is_finance?'finance-tag':'text-[9px] text-gray-300'} font-black italic">
+                            ${l.is_finance ? 'FINANCE REGULATION' : l.type}
+                        </span>
+                        <span class="text-[9px] text-gray-400 font-mono italic">${l.effective_date || l.date}</span>
+                    </div>
+                    <h4 class="font-bold text-sm text-slate-800 leading-tight">${l.title}</h4>
+                </div>
+            `).join('');
+
+            document.getElementById('guide-list').innerHTML = laws.filter(l => l.is_finance).map(l => `
+                <div class="apple-card p-8 border-l-8 border-blue-600 space-y-6">
+                    <h4 class="font-black text-xl text-slate-900">${l.title}</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-2xl">
+                            <p class="text-[9px] font-black text-slate-400 uppercase mb-2 italic">Accountable </p>
+                            <p class="text-sm font-bold text-slate-800">${l.exec_level}</p>
+                        </div>
+                        <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                            <p class="text-[9px] font-black text-blue-500 uppercase mb-2 italic">Action Item </p>
+                            <p class="text-sm font-bold text-blue-900">${l.exec_action}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            if(sortedLaws.length > 0) selectLaw(sortedLaws[0].id);
+        }
+
+        function selectLaw(id) {
+            const l = laws.find(x => x.id == id);
+            document.querySelectorAll('.law-item').forEach(el => el.classList.remove('selected'));
+            const target = document.getElementById(`item-${id}`);
+            if(target) target.classList.add('selected');
+            
+            document.getElementById('dt-title').innerText = l.title;
+            document.getElementById('dt-risk').innerText = l.risk_level;
+            document.getElementById('dt-insight').innerText = l.sejong_insight;
+            document.getElementById('dt-old').innerText = l.diff.old_text;
+            document.getElementById('dt-new').innerText = l.diff.new_text;
+        }
+        load();
+    </script>
+</body>
+</html>

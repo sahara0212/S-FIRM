@@ -138,6 +138,11 @@
   <!-- TAB 2: 금지행위 추출 -->
   <div id="view-prohibit" class="fade-in hidden">
 
+    <!-- ① 자동 추출 상태 배너 -->
+    <div id="auto-extract-banner" style="display:none;background:#FFF7ED;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px;">
+      <span id="auto-extract-msg" style="font-size:12px;color:#92400E;font-weight:600;"></span>
+    </div>
+
     <!-- ① 기능 설명 캡션 -->
     <div style="background:#F8FAFF;border-left:3px solid #3B82F6;border-radius:0 8px 8px 0;padding:10px 16px;margin-bottom:20px;">
       <span style="font-size:11px;color:#1E40AF;line-height:1.7;">
@@ -697,7 +702,7 @@ function switchTab(tab) {
   if (pf) pf.style.display = tab === 'monitor' ? 'flex' : 'none';
 
   if (tab === 'prohibit') {
-    loadProhibitions().then(() => {
+    loadProhibitions(true).then(() => {
       renderProhibit();
       if (_prohibCache.length === 0) autoExtractAll();
     });
@@ -1486,34 +1491,43 @@ function toggleExpand() {
 }
 
 let _extracting = false;
+function _setBanner(msg, color='#92400E', bg='#FFF7ED', border='#F59E0B') {
+  const banner = document.getElementById('auto-extract-banner');
+  const msgEl  = document.getElementById('auto-extract-msg');
+  if (!banner || !msgEl) return;
+  if (!msg) { banner.style.display = 'none'; return; }
+  banner.style.background   = bg;
+  banner.style.borderColor  = border;
+  msgEl.style.color         = color;
+  msgEl.textContent         = msg;
+  banner.style.display      = '';
+}
+
 async function autoExtractAll() {
   if (_extracting) return;
 
-  // 기간 변경이 있는 전체 법령의 diff 수집
   const lawOrder = ['pipa','cipa','aiba','efsr','itna','fgsl'];
   const allDiffs = [];
   for (const lawId of lawOrder) {
     const law = LAW_CHANGES[lawId];
     if (!law) continue;
-    const periodChanges = (law.changes || []).filter(c => isRecent(c.date));
-    for (const c of periodChanges) {
+    for (const c of (law.changes || []).filter(c => isRecent(c.date))) {
       allDiffs.push({
         law_id: lawId, law_name: law.name, article: c.article,
         change_type: '개정', before: c.before || '(이전 버전 참조)', after: c.after || '(신설)',
       });
     }
   }
-  if (!allDiffs.length) return;
+  if (!allDiffs.length) {
+    _setBanner('기간 내 변경 조문이 없습니다. 기간 필터를 확인하세요.', '#6B7280', '#F9FAFB', '#D1D5DB');
+    return;
+  }
 
   _extracting = true;
+  _setBanner(`⏳ AI가 ${allDiffs.length}건 변경조문 분석 중... (30~90초 소요)`);
 
-  // 테이블에 로딩 상태 표시
   const tbody = document.getElementById('proh-overview-tbody');
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:#6B7280;font-size:13px;">
-      ⏳ AI가 ${allDiffs.length}건 변경조문 분석 중입니다... (30~90초 소요)
-    </td></tr>`;
-  }
+  if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:#6B7280;font-size:13px;">⏳ AI 분석 중... (30~90초)</td></tr>`;
 
   try {
     const resp = await fetch(
@@ -1523,15 +1537,16 @@ async function autoExtractAll() {
         signal: AbortSignal.timeout(180000) }
     );
     const data = await resp.json();
-    if (data.status === 'success') {
-      showToast(`✅ ${data.prohibition_count}건 금지행위 추출 완료`);
+    if (resp.ok && data.status === 'success') {
+      _setBanner(`✅ ${data.prohibition_count}건 금지행위 추출 완료`, '#065F46', '#F0FDF4', '#10B981');
       _prohibLoaded = false;
       await loadProhibitions(true);
     } else {
-      showToast(`❌ 추출 실패: ${data.detail || '오류 발생'}`);
+      const msg = data.detail || data.message || JSON.stringify(data);
+      _setBanner(`❌ 추출 실패: ${msg}`, '#991B1B', '#FEF2F2', '#EF4444');
     }
   } catch (e) {
-    showToast(`❌ 오류: ${e.message}`);
+    _setBanner(`❌ 오류: ${e.message}`, '#991B1B', '#FEF2F2', '#EF4444');
   } finally {
     _extracting = false;
     renderProhibit();

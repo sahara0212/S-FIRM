@@ -220,7 +220,7 @@
       <button onclick="exportData('pdf')" style="background:#000; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-file-pdf" style="margin-right:5px"></i>PDF 리포트</button>
     </div>
     <p class="sec-label">현황 요약</p>
-    <div style="display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 28px;" id="rules-stats-grid"></div>
+    <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px;" id="rules-stats-grid"></div>
     <p class="sec-label">업무규칙 명세서</p>
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px;" id="rules-cards"></div>
     <p class="sec-label">전체 규칙 목록</p>
@@ -542,7 +542,7 @@ let _prohibCache  = [];
 let _rulesCache   = [];
 let _prohibLoaded = false;
 let _rulesLoaded  = false;
-let _ruleActions  = {};   // id → {type:'completed'|'hold'|'mandatory'|'regulation'|'manual', ts, note}
+let _ruleActions  = {};   // id → {status:'승인'|'검토'|'협의필요'|'보류', ts}
 let _aiAnalysisCache = {}; // id → AI classification result
 
 // 1차 책임자 선택 시 자동 체인
@@ -1925,16 +1925,12 @@ function renderRules() {
   const mandatory    = _rulesCache.filter(r => classifyRule(r) === 'mandatory').length;
   const regulation   = _rulesCache.filter(r => classifyRule(r) === 'regulation').length;
   const manual       = _rulesCache.filter(r => classifyRule(r) === 'manual').length;
-  const completed    = _rulesCache.filter(r => (_ruleActions[r.id] && _ruleActions[r.id].type === 'completed') || r.status === 'completed').length;
-  const held         = _rulesCache.filter(r => _ruleActions[r.id] && _ruleActions[r.id].type === 'hold').length;
 
   const stats = [
-    { label:'총 법령 변경',    value:totalChanges, type:'all',       color:'#3B82F6', icon:'📋' },
-    { label:'사규 필수반영',   value:mandatory,    type:'mandatory', color:'#DC2626', icon:'🔴' },
-    { label:'규정/규칙 반영',  value:regulation,   type:'regulation',color:'#7C3AED', icon:'🟣' },
-    { label:'매뉴얼/가이드',   value:manual,       type:'manual',    color:'#0EA5E9', icon:'🔵' },
-    { label:'검토 완료',       value:completed,    type:'completed', color:'#10B981', icon:'✅' },
-    { label:'보류/협의중',     value:held,         type:'hold',      color:'#F59E0B', icon:'⏸' },
+    { label:'총 법령 변경',   value:totalChanges, type:'all',       color:'#3B82F6', icon:'📋' },
+    { label:'사규 필수반영',  value:mandatory,    type:'mandatory', color:'#DC2626', icon:'🔴' },
+    { label:'규정/규칙 반영', value:regulation,   type:'regulation',color:'#7C3AED', icon:'🟣' },
+    { label:'매뉴얼/가이드',  value:manual,       type:'manual',    color:'#0EA5E9', icon:'🔵' },
   ];
 
   document.getElementById('rules-stats-grid').innerHTML = stats.map(s => `
@@ -1949,10 +1945,9 @@ function renderRules() {
   document.getElementById('rules-tbody').innerHTML = _rulesCache.map(r => {
     const p = r.prohibition || {};
     const cls = classifyRule(r);
-    const stBadge = ruleStatusBadge(r.status);
-    const actionState = _ruleActions[r.id];
-    const statusLabel = actionState?.type === 'completed' ? '검토완료' : actionState?.type === 'hold' ? '보류/협의중' : ruleStatusLabel(r.status);
-    const statusBadge = actionState?.type === 'completed' ? 'completed' : actionState?.type === 'hold' ? 'reviewing' : stBadge;
+    const reviewStatus = _ruleActions[r.id]?.status;
+    const statusLabel = reviewStatus || '미검토';
+    const statusBadge = reviewStatus === '승인' ? 'completed' : reviewStatus === '검토' ? 'reviewing' : reviewStatus ? 'reviewing' : 'pending';
     return `<tr onclick="showRuleDetail('${r.id}')" style="cursor:pointer;">
       <td><span style="font-family:monospace;font-size:12px;font-weight:800;color:#1D4ED8;">${r.rule_code||'-'}</span></td>
       <td><span style="font-size:13px;font-weight:600;">${r.name}</span></td>
@@ -2055,17 +2050,19 @@ function showRuleDetail(id) {
   const act = _ruleActions[id];
   const history = _ruleActionHistory[id] || [];
 
-  const btnStyle = (active, color) =>
-    `style="flex:1;padding:9px 4px;border:2px solid ${active ? color : '#E5E7EB'};background:${active ? color : '#fff'};color:${active ? '#fff' : '#374151'};border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;"`;
+  const curStatus = act?.status || null;
+  const statusRadios = _REVIEW_STATUSES.map(s => {
+    const active = curStatus === s;
+    const col = _REVIEW_COLORS[s];
+    return `<label style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;flex:1;padding:10px 4px;border:2px solid ${active ? col : '#E5E7EB'};border-radius:10px;background:${active ? col+'18' : '#fff'};">
+      <input type="radio" name="detail_status_${id}" value="${s}" ${active ? 'checked' : ''}
+        onchange="setRuleStatus('${id}','${s}')"
+        style="accent-color:${col};width:15px;height:15px;cursor:pointer;">
+      <span style="font-size:11px;font-weight:700;color:${active ? col : '#6B7280'};">${s}</span>
+    </label>`;
+  }).join('');
 
-  const actionBtns = `
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
-    <button ${btnStyle(cls==='mandatory','#DC2626')} onclick="setRuleAction('${id}','mandatory')">🔴 사규반영</button>
-    <button ${btnStyle(cls==='regulation','#7C3AED')} onclick="setRuleAction('${id}','regulation')">🟣 규정규칙</button>
-    <button ${btnStyle(cls==='manual','#0EA5E9')} onclick="setRuleAction('${id}','manual')">🔵 매뉴얼</button>
-    <button ${btnStyle(act?.type==='completed','#10B981')} onclick="setRuleAction('${id}','completed')">✅ 검토완료</button>
-    <button ${btnStyle(act?.type==='hold','#F59E0B')} onclick="setRuleAction('${id}','hold')">⏸ 보류</button>
-  </div>`;
+  const actionBtns = `<div style="display:flex;gap:8px;">${statusRadios}</div>`;
 
   const historyHtml = history.length ? history.slice(-5).reverse().map(h => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F3F4F6;font-size:11px;">
@@ -2133,10 +2130,11 @@ function showRuleDetail(id) {
       </div>
     </div>
 
-    <!-- §4 액션 버튼 -->
+    <!-- §4 검토 상태 -->
     <div style="margin-bottom:16px;">
-      <div class="sec-label" style="margin-bottom:8px;">⚡ 처리 분류 / 상태 설정</div>
+      <div class="sec-label" style="margin-bottom:8px;">⚡ 검토 상태 설정</div>
       ${actionBtns}
+      ${curStatus ? `<div style="margin-top:8px;font-size:11px;color:#6B7280;">현재 상태: <b style="color:${_REVIEW_COLORS[curStatus]};">${curStatus}</b> &nbsp;·&nbsp; ${act.ts}</div>` : '<div style="margin-top:8px;font-size:11px;color:#9CA3AF;">아직 검토 전입니다</div>'}
     </div>
 
     <!-- §5 처리 이력 -->
@@ -2151,16 +2149,6 @@ function showRuleDetail(id) {
 // 처리 이력 저장소
 const _ruleActionHistory = {};
 
-function setRuleAction(id, type) {
-  const labels = { mandatory:'사규 필수반영', regulation:'규정/규칙 반영', manual:'매뉴얼/가이드라인', completed:'검토 완료', hold:'보류/협의중' };
-  const now = new Date().toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-  _ruleActions[id] = { type, ts: now };
-  if (!_ruleActionHistory[id]) _ruleActionHistory[id] = [];
-  _ruleActionHistory[id].push({ label: labels[type] || type, ts: now });
-  showToast(`${labels[type]} 으로 분류되었습니다`);
-  closeModal();
-  setTimeout(() => { renderRules(); showRuleDetail(id); }, 120);
-}
 
 async function runAiAnalysis(id) {
   const r = _rulesCache.find(x => x.id === id);
@@ -2197,33 +2185,73 @@ async function runAiAnalysis(id) {
   }
 }
 
+const _REVIEW_STATUSES = ['승인', '검토', '협의필요', '보류'];
+const _REVIEW_COLORS   = { '승인':'#10B981', '검토':'#3B82F6', '협의필요':'#F59E0B', '보류':'#EF4444' };
+
 function showRuleStatDetail2(type) {
   const typeMap = {
     all:       { label:'전체 업무규칙',    fn: r => true },
     mandatory: { label:'사규 필수반영',   fn: r => classifyRule(r) === 'mandatory' },
     regulation:{ label:'규정/규칙 반영',  fn: r => classifyRule(r) === 'regulation' },
     manual:    { label:'매뉴얼/가이드라인',fn: r => classifyRule(r) === 'manual' },
-    completed: { label:'검토 완료',       fn: r => (_ruleActions[r.id]?.type === 'completed') || r.status === 'completed' },
-    hold:      { label:'보류/협의중',     fn: r => _ruleActions[r.id]?.type === 'hold' },
   };
   const { label, fn } = typeMap[type] || typeMap['all'];
+  _currentStatDetailType = type;
+  _renderStatDetailModal(label, fn);
+}
+
+let _currentStatDetailType = 'all';
+
+function _renderStatDetailModal(label, fn) {
   const filtered = _rulesCache.filter(fn);
-  showModal(mHeader(label) + `<div style="padding:14px 20px;display:flex;flex-direction:column;gap:8px;">
-    ${filtered.map(r => {
-      const p = r.prohibition || {};
-      const cls = classifyRule(r);
-      return `<div style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
-        onclick="closeModal();setTimeout(()=>showRuleDetail('${r.id}'),120)">
-        <div>
+
+  const rows = filtered.map(r => {
+    const p = r.prohibition || {};
+    const cls = classifyRule(r);
+    const cur = _ruleActions[r.id]?.status || null;
+    const checkboxes = _REVIEW_STATUSES.map(s => {
+      const active = cur === s;
+      const col = _REVIEW_COLORS[s];
+      return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;">
+        <input type="radio" name="status_${r.id}" value="${s}" ${active ? 'checked' : ''}
+          onchange="setRuleStatus('${r.id}','${s}')"
+          style="accent-color:${col};width:14px;height:14px;cursor:pointer;">
+        <span style="font-size:11px;font-weight:700;color:${active ? col : '#6B7280'};">${s}</span>
+      </label>`;
+    }).join('');
+
+    return `<div style="padding:14px;border:1px solid #E5E7EB;border-radius:12px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
           <div style="font-family:monospace;font-size:11px;color:#1D4ED8;font-weight:700;">${r.rule_code||'-'}</div>
-          <div style="font-size:13px;font-weight:600;margin-top:2px;">${r.name}</div>
-          <div style="font-size:11px;color:#6B7280;margin-top:1px;">${p.law_name||''}</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px;line-height:1.4;">${r.name}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:2px;">${p.law_name||''} ${p.article||''}</div>
         </div>
-        <span style="background:${classifyBg(cls)};color:${classifyColor(cls)};font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;">${classifyLabel(cls)}</span>
-      </div>`;
-    }).join('')}
-    ${filtered.length === 0 ? '<div style="text-align:center;padding:24px;color:#9CA3AF;">해당 항목 없음</div>' : ''}
-  </div>`);
+        <span style="background:${classifyBg(cls)};color:${classifyColor(cls)};font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0;">${classifyLabel(cls)}</span>
+      </div>
+      <div style="display:flex;gap:16px;padding:10px 12px;background:#F9FAFB;border-radius:8px;flex-wrap:wrap;">
+        ${checkboxes}
+        ${cur ? `<span style="margin-left:auto;font-size:10px;font-weight:700;color:${_REVIEW_COLORS[cur]||'#6B7280'};align-self:center;">▶ ${cur}</span>` : '<span style="margin-left:auto;font-size:10px;color:#9CA3AF;align-self:center;">미검토</span>'}
+      </div>
+    </div>`;
+  }).join('');
+
+  showModal(mHeader(label) + `
+    <div style="padding:12px 20px 6px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:#6B7280;">총 <b>${filtered.length}</b>개 업무규칙 | 담당자 검토 후 상태를 선택하세요</span>
+    </div>
+    <div style="padding:4px 20px 20px;display:flex;flex-direction:column;gap:10px;max-height:65vh;overflow-y:auto;">
+      ${rows || '<div style="text-align:center;padding:24px;color:#9CA3AF;">해당 항목 없음</div>'}
+    </div>`);
+}
+
+function setRuleStatus(id, status) {
+  const now = new Date().toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  _ruleActions[id] = { status, ts: now };
+  if (!_ruleActionHistory[id]) _ruleActionHistory[id] = [];
+  _ruleActionHistory[id].push({ label: status, ts: now });
+  // re-render table in background
+  setTimeout(renderRules, 50);
 }
 
 // ═══════════════════════════════════════

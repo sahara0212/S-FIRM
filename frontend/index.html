@@ -697,7 +697,10 @@ function switchTab(tab) {
   if (pf) pf.style.display = tab === 'monitor' ? 'flex' : 'none';
 
   if (tab === 'prohibit') {
-    loadProhibitions().then(() => renderProhibit());
+    loadProhibitions().then(() => {
+      renderProhibit();
+      if (_prohibCache.length === 0) autoExtractAll();
+    });
   } else if (tab === 'duty') {
     loadProhibitions().then(() => renderDuty());
   } else if (tab === 'rules') {
@@ -1483,6 +1486,58 @@ function toggleExpand() {
 }
 
 let _extracting = false;
+async function autoExtractAll() {
+  if (_extracting) return;
+
+  // 기간 변경이 있는 전체 법령의 diff 수집
+  const lawOrder = ['pipa','cipa','aiba','efsr','itna','fgsl'];
+  const allDiffs = [];
+  for (const lawId of lawOrder) {
+    const law = LAW_CHANGES[lawId];
+    if (!law) continue;
+    const periodChanges = (law.changes || []).filter(c => isRecent(c.date));
+    for (const c of periodChanges) {
+      allDiffs.push({
+        law_id: lawId, law_name: law.name, article: c.article,
+        change_type: '개정', before: c.before || '(이전 버전 참조)', after: c.after || '(신설)',
+      });
+    }
+  }
+  if (!allDiffs.length) return;
+
+  _extracting = true;
+
+  // 테이블에 로딩 상태 표시
+  const tbody = document.getElementById('proh-overview-tbody');
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:#6B7280;font-size:13px;">
+      ⏳ AI가 ${allDiffs.length}건 변경조문 분석 중입니다... (30~90초 소요)
+    </td></tr>`;
+  }
+
+  try {
+    const resp = await fetch(
+      `${API_BASE}/api/v1/clients/${ACTIVE_CLIENT_ID}/sessions/${ACTIVE_SESSION_ID}/extract`,
+      { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ law_diffs: allDiffs }),
+        signal: AbortSignal.timeout(180000) }
+    );
+    const data = await resp.json();
+    if (data.status === 'success') {
+      showToast(`✅ ${data.prohibition_count}건 금지행위 추출 완료`);
+      _prohibLoaded = false;
+      await loadProhibitions(true);
+    } else {
+      showToast(`❌ 추출 실패: ${data.detail || '오류 발생'}`);
+    }
+  } catch (e) {
+    showToast(`❌ 오류: ${e.message}`);
+  } finally {
+    _extracting = false;
+    renderProhibit();
+  }
+}
+
 async function extractForLaw(lawId, mode = 'period') {
   if (_extracting) return;
   _extracting = true;

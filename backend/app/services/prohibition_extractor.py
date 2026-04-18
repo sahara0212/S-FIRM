@@ -32,7 +32,7 @@ def _build_law_text(law_diffs: list[dict]) -> str:
     parts = []
     for item in law_diffs:
         parts.append(
-            f"[{item['law_name']} {item['article']}]\n"
+            f"[law_id={item['law_id']} | {item['law_name']} {item['article']}]\n"
             f"전: {item['before'][:300]}\n"
             f"후: {item['after'][:300]}"
         )
@@ -110,13 +110,20 @@ def extract_prohibitions(law_diffs: list[dict], executives: list[dict]) -> list[
     # 법령별 병렬 호출 (최대 6개 동시)
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = {
-            executor.submit(_extract_for_law, client, law_id, diffs, duty_text): law_id
+            executor.submit(_extract_for_law, client, law_id, diffs, duty_text): (law_id, diffs)
             for law_id, diffs in groups.items()
         }
         for future in as_completed(futures):
-            law_id = futures[future]
+            law_id, diffs = futures[future]
             try:
                 items = future.result()
+                # law_id 누락 시 보정
+                law_name = diffs[0]["law_name"] if diffs else ""
+                for item in items:
+                    if not item.get("law_id"):
+                        item["law_id"] = law_id
+                    if not item.get("law_name"):
+                        item["law_name"] = law_name
                 all_results.extend(items)
             except Exception as e:
                 print(f"[prohibition_extractor] {law_id} 실패: {e}")

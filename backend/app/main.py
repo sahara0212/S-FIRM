@@ -141,6 +141,57 @@ HIGH / MEDIUM / LOW 중 하나를 선택하고 이유를 한 줄로 설명하세
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
+# ── AI 규정 분류 분석 ──────────────────────────────────────────────────
+@app.post("/api/v1/classify-regulation")
+async def classify_regulation(body: dict):
+    """
+    업무규칙을 컴플라이언스 전문가 AI로 분류 분석.
+    반환: { classification, reason, confidence, risk_level, affected_duties, action_required }
+    """
+    import json, re
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return JSONResponse({"error": "ANTHROPIC_API_KEY가 설정되지 않았습니다."}, status_code=503)
+
+    system = """당신은 금융회사 내부통제 컴플라이언스 전문가입니다.
+업무규칙 정보를 분석하여 규정 반영 유형을 분류하고 JSON만 반환하세요. 설명 없이 JSON만 출력하세요."""
+
+    prompt = f"""다음 업무규칙을 분석하여 컴플라이언스 분류를 수행하세요.
+
+규칙코드: {body.get('rule_code','')}
+규칙명: {body.get('rule_name','')}
+설명: {body.get('rule_description','')}
+법령: {body.get('law_name','')} {body.get('article','')}
+금지행위: {body.get('prohibition_name','')}
+금지행위 설명: {body.get('prohibition_description','')}
+우선순위: {body.get('priority','')}
+발동조건: {body.get('trigger_condition','')}
+1차 책임: {body.get('first_duty','')}
+
+분류 기준:
+- 사규필수반영: 법적 강제사항, HIGH 우선순위, "하여서는 아니 된다/금지/위반" 포함
+- 규정규칙반영: 내부규정 개정 필요, MEDIUM 우선순위, 임원 책무 관련
+- 매뉴얼가이드라인: 실무 가이드, LOW 우선순위, 권고사항
+
+JSON 형식으로만 출력:
+{{"classification":"사규필수반영|규정규칙반영|매뉴얼가이드라인","reason":"분류 근거 1~2문장","confidence":0.0~1.0,"risk_level":"HIGH|MEDIUM|LOW","affected_duties":["CCO"],"action_required":"즉시 조치사항 1문장"}}"""
+
+    client = anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = msg.content[0].text.strip()
+    m = re.search(r"\{[\s\S]+\}", raw)
+    try:
+        return JSONResponse(json.loads(m.group(0) if m else raw))
+    except Exception:
+        return JSONResponse({"classification": "규정규칙반영", "reason": raw[:200], "confidence": 0.7, "risk_level": "MEDIUM", "affected_duties": [], "action_required": ""})
+
+
 # ── 기존 엔드포인트 유지 (하위호환) ──────────────────────────────────────
 @app.get("/api/v1/updates")
 def get_updates():

@@ -220,13 +220,13 @@
       <button onclick="exportData('pdf')" style="background:#000; color:#fff; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-file-pdf" style="margin-right:5px"></i>PDF 리포트</button>
     </div>
     <p class="sec-label">현황 요약</p>
-    <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px;" id="rules-stats-grid"></div>
+    <div style="display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 28px;" id="rules-stats-grid"></div>
     <p class="sec-label">업무규칙 명세서</p>
     <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px;" id="rules-cards"></div>
     <p class="sec-label">전체 규칙 목록</p>
     <div class="card" style="overflow: hidden;">
       <table class="data-table">
-        <thead><tr><th>규칙 ID</th><th>규칙명</th><th>법령</th><th>상태</th></tr></thead>
+        <thead><tr><th>규칙 ID</th><th>규칙명</th><th>법령</th><th>분류</th><th>상태</th></tr></thead>
         <tbody id="rules-tbody"></tbody>
       </table>
     </div>
@@ -542,6 +542,8 @@ let _prohibCache  = [];
 let _rulesCache   = [];
 let _prohibLoaded = false;
 let _rulesLoaded  = false;
+let _ruleActions  = {};   // id → {type:'completed'|'hold'|'mandatory'|'regulation'|'manual', ts, note}
+let _aiAnalysisCache = {}; // id → AI classification result
 
 // 1차 책임자 선택 시 자동 체인
 const EXEC_CHAIN = {
@@ -1884,40 +1886,79 @@ function ruleStatusBadge(s) {
   return s==='completed'?'completed':s==='reviewing'?'reviewing':'pending';
 }
 
+// ── 업무규칙 분류 로직 ───────────────────────────────
+function classifyRule(rule) {
+  const p = rule.prohibition || {};
+  const d = rule.duty || {};
+  const desc = (p.description || '') + ' ' + (rule.description || '');
+  const priority = p.priority || 'LOW';
+  const firstDuty = (d.first_duty || '');
+  const a = _ruleActions[rule.id];
+  if (a && ['mandatory','regulation','manual'].includes(a.type)) return a.type;
+  if (priority === 'HIGH' || /하여서는 아니 된다|금지|위반|제재/.test(desc)) return 'mandatory';
+  if (priority === 'MEDIUM' || /CCO|CRO|CISO/.test(firstDuty)) return 'regulation';
+  return 'manual';
+}
+
+function classifyLabel(type) {
+  return type === 'mandatory' ? '사규 필수반영' : type === 'regulation' ? '규정/규칙 반영' : '매뉴얼/가이드라인';
+}
+function classifyColor(type) {
+  return type === 'mandatory' ? '#DC2626' : type === 'regulation' ? '#7C3AED' : '#0EA5E9';
+}
+function classifyBg(type) {
+  return type === 'mandatory' ? '#FEF2F2' : type === 'regulation' ? '#F5F3FF' : '#F0F9FF';
+}
+
 function renderRules() {
   if (_rulesCache.length === 0) {
     ['rules-stats-grid','rules-cards','rules-tbody'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = id === 'rules-tbody'
-        ? `<tr><td colspan="4" style="text-align:center;padding:24px;color:#9CA3AF;">업무규칙 데이터가 없습니다.</td></tr>`
+        ? `<tr><td colspan="5" style="text-align:center;padding:24px;color:#9CA3AF;">업무규칙 데이터가 없습니다.</td></tr>`
         : `<div style="color:#9CA3AF;font-size:12px;padding:8px;">데이터 로딩 중...</div>`;
     });
     return;
   }
 
+  const totalChanges = allRecentChanges().length || _prohibCache.length;
+  const mandatory    = _rulesCache.filter(r => classifyRule(r) === 'mandatory').length;
+  const regulation   = _rulesCache.filter(r => classifyRule(r) === 'regulation').length;
+  const manual       = _rulesCache.filter(r => classifyRule(r) === 'manual').length;
+  const completed    = _rulesCache.filter(r => (_ruleActions[r.id] && _ruleActions[r.id].type === 'completed') || r.status === 'completed').length;
+  const held         = _rulesCache.filter(r => _ruleActions[r.id] && _ruleActions[r.id].type === 'hold').length;
+
   const stats = [
-    { label:'총 업무규칙',   value:_rulesCache.length, type:'all', color:'#3B82F6' },
-    { label:'기간계 반영완료', value:_rulesCache.filter(r=>r.status==='completed').length, type:'completed', color:'#10B981' },
-    { label:'검토중',        value:_rulesCache.filter(r=>r.status==='reviewing').length,  type:'reviewing', color:'#F59E0B' },
-    { label:'반영 필요',     value:_rulesCache.filter(r=>r.status==='draft').length,      type:'draft',     color:'#EF4444' }
+    { label:'총 법령 변경',    value:totalChanges, type:'all',       color:'#3B82F6', icon:'📋' },
+    { label:'사규 필수반영',   value:mandatory,    type:'mandatory', color:'#DC2626', icon:'🔴' },
+    { label:'규정/규칙 반영',  value:regulation,   type:'regulation',color:'#7C3AED', icon:'🟣' },
+    { label:'매뉴얼/가이드',   value:manual,       type:'manual',    color:'#0EA5E9', icon:'🔵' },
+    { label:'검토 완료',       value:completed,    type:'completed', color:'#10B981', icon:'✅' },
+    { label:'보류/협의중',     value:held,         type:'hold',      color:'#F59E0B', icon:'⏸' },
   ];
 
   document.getElementById('rules-stats-grid').innerHTML = stats.map(s => `
-    <div class="stat-card" onclick="showRuleStatDetail('${s.type}')">
-      <div style="font-size:30px;font-weight:900;color:${s.color};line-height:1;">${s.value}</div>
-      <div style="font-size:10px;color:#6B7280;margin-top:6px;font-weight:500;">${s.label}</div>
+    <div class="stat-card" onclick="showRuleStatDetail2('${s.type}')" style="cursor:pointer;">
+      <div style="font-size:10px;margin-bottom:6px;">${s.icon}</div>
+      <div style="font-size:26px;font-weight:900;color:${s.color};line-height:1;">${s.value}</div>
+      <div style="font-size:10px;color:#6B7280;margin-top:5px;font-weight:600;">${s.label}</div>
     </div>`).join('');
 
   document.getElementById('rules-cards').innerHTML = _rulesCache.slice(0, 5).map(r => ruleCardHtml(r, false)).join('');
 
   document.getElementById('rules-tbody').innerHTML = _rulesCache.map(r => {
     const p = r.prohibition || {};
+    const cls = classifyRule(r);
     const stBadge = ruleStatusBadge(r.status);
-    return `<tr onclick="showRuleDetail('${r.id}')">
+    const actionState = _ruleActions[r.id];
+    const statusLabel = actionState?.type === 'completed' ? '검토완료' : actionState?.type === 'hold' ? '보류/협의중' : ruleStatusLabel(r.status);
+    const statusBadge = actionState?.type === 'completed' ? 'completed' : actionState?.type === 'hold' ? 'reviewing' : stBadge;
+    return `<tr onclick="showRuleDetail('${r.id}')" style="cursor:pointer;">
       <td><span style="font-family:monospace;font-size:12px;font-weight:800;color:#1D4ED8;">${r.rule_code||'-'}</span></td>
       <td><span style="font-size:13px;font-weight:600;">${r.name}</span></td>
       <td style="font-size:11px;color:#6B7280;">${p.law_name||''}</td>
-      <td><span class="badge badge-${stBadge}">${ruleStatusLabel(r.status)}</span></td>
+      <td><span style="background:${classifyBg(cls)};color:${classifyColor(cls)};font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;">${classifyLabel(cls)}</span></td>
+      <td><span class="badge badge-${statusBadge}">${statusLabel}</span></td>
     </tr>`;
   }).join('');
 }
@@ -2007,7 +2048,182 @@ function showRuleStatDetail(type) {
 function showRuleDetail(id) {
   const r = _rulesCache.find(x => x.id === id);
   if (!r) return;
-  showModal(mHeader(`${r.rule_code||'업무규칙'} 상세`) + `<div style="padding:16px 20px 20px;">${ruleCardHtml(r, true)}</div>`);
+  const p = r.prohibition || {};
+  const d = r.duty || {};
+  const cls = classifyRule(r);
+  const ai  = _aiAnalysisCache[id];
+  const act = _ruleActions[id];
+  const history = _ruleActionHistory[id] || [];
+
+  const btnStyle = (active, color) =>
+    `style="flex:1;padding:9px 4px;border:2px solid ${active ? color : '#E5E7EB'};background:${active ? color : '#fff'};color:${active ? '#fff' : '#374151'};border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;"`;
+
+  const actionBtns = `
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+    <button ${btnStyle(cls==='mandatory','#DC2626')} onclick="setRuleAction('${id}','mandatory')">🔴 사규반영</button>
+    <button ${btnStyle(cls==='regulation','#7C3AED')} onclick="setRuleAction('${id}','regulation')">🟣 규정규칙</button>
+    <button ${btnStyle(cls==='manual','#0EA5E9')} onclick="setRuleAction('${id}','manual')">🔵 매뉴얼</button>
+    <button ${btnStyle(act?.type==='completed','#10B981')} onclick="setRuleAction('${id}','completed')">✅ 검토완료</button>
+    <button ${btnStyle(act?.type==='hold','#F59E0B')} onclick="setRuleAction('${id}','hold')">⏸ 보류</button>
+  </div>`;
+
+  const historyHtml = history.length ? history.slice(-5).reverse().map(h => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F3F4F6;font-size:11px;">
+      <span style="color:#374151;font-weight:600;">${h.label}</span>
+      <span style="color:#9CA3AF;">${h.ts}</span>
+    </div>`).join('') : `<div style="font-size:11px;color:#9CA3AF;padding:8px 0;">이력 없음</div>`;
+
+  const aiSection = ai ? `
+    <div style="background:#F0FDF4;border:1px solid #A7F3D0;border-radius:12px;padding:14px;">
+      <div style="font-size:12px;font-weight:800;color:#065F46;margin-bottom:6px;">🤖 AI 분류 분석 결과</div>
+      <div style="font-size:12px;color:#374151;margin-bottom:4px;"><b>분류:</b> ${ai.classification||cls} &nbsp;|&nbsp; <b>신뢰도:</b> ${Math.round((ai.confidence||0.8)*100)}%</div>
+      <div style="font-size:12px;color:#374151;margin-bottom:4px;"><b>근거:</b> ${ai.reason||''}</div>
+      <div style="font-size:12px;color:#374151;"><b>즉시 조치:</b> ${ai.action_required||''}</div>
+    </div>` : `
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:#6B7280;">규칙 기반 자동 분류: <b style="color:${classifyColor(cls)};">${classifyLabel(cls)}</b></span>
+      <button onclick="runAiAnalysis('${id}')" style="padding:7px 14px;background:#000;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">🤖 AI 재분류</button>
+    </div>`;
+
+  showModal(mHeader(`${r.rule_code||'업무규칙'} 상세`) + `
+  <div style="padding:0 20px 20px;">
+
+    <!-- §1 법령 기본 정보 -->
+    <div style="margin-bottom:16px;">
+      <div class="sec-label" style="margin-bottom:8px;">📋 법령 기본 정보</div>
+      <div style="background:#F9FAFB;border-radius:12px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div><span style="color:#9CA3AF;">법령명</span><br><b>${p.law_name||'-'}</b></div>
+        <div><span style="color:#9CA3AF;">조문</span><br><b>${p.article||'-'}</b></div>
+        <div><span style="color:#9CA3AF;">금지행위</span><br><b>${p.name||'-'}</b></div>
+        <div><span style="color:#9CA3AF;">우선순위</span><br>
+          <span style="background:${p.priority==='HIGH'?'#FEE2E2':p.priority==='MEDIUM'?'#FEF3C7':'#F3F4F6'};color:${p.priority==='HIGH'?'#DC2626':p.priority==='MEDIUM'?'#D97706':'#6B7280'};font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;">${p.priority||'LOW'}</span>
+        </div>
+        <div style="grid-column:span 2;"><span style="color:#9CA3AF;">설명</span><br>${p.description||'-'}</div>
+        <div style="grid-column:span 2;"><span style="color:#9CA3AF;">발동 조건</span><br>${r.trigger_condition||p.trigger_condition||'-'}</div>
+      </div>
+    </div>
+
+    <!-- §2 AI 분류 근거 -->
+    <div style="margin-bottom:16px;">
+      <div class="sec-label" style="margin-bottom:8px;">🧠 AI 분류 근거</div>
+      ${aiSection}
+    </div>
+
+    <!-- §3 책무구조도 매핑 -->
+    <div style="margin-bottom:16px;">
+      <div class="sec-label" style="margin-bottom:8px;">🏛 책무구조도 매핑</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="background:#ECFDF5;color:#059669;font-size:13px;font-weight:800;padding:10px 16px;border-radius:10px;border:2px solid #A7F3D0;">${d.first_duty||'-'}</div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:4px;">1차 책임</div>
+        </div>
+        <div style="color:#D1D5DB;font-size:18px;">→</div>
+        <div style="text-align:center;">
+          <div style="background:#F5F3FF;color:#7C3AED;font-size:13px;font-weight:800;padding:10px 16px;border-radius:10px;border:2px solid #DDD6FE;">${d.second_duty||'-'}</div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:4px;">2차 책임</div>
+        </div>
+        <div style="color:#D1D5DB;font-size:18px;">→</div>
+        <div style="text-align:center;">
+          <div style="background:#EFF6FF;color:#1D4ED8;font-size:13px;font-weight:800;padding:10px 16px;border-radius:10px;border:2px solid #BFDBFE;">${d.third_duty||'-'}</div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:4px;">3차 책임</div>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:11px;color:#6B7280;line-height:1.6;">${p.mapping_reason||''}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- §4 액션 버튼 -->
+    <div style="margin-bottom:16px;">
+      <div class="sec-label" style="margin-bottom:8px;">⚡ 처리 분류 / 상태 설정</div>
+      ${actionBtns}
+    </div>
+
+    <!-- §5 처리 이력 -->
+    <div>
+      <div class="sec-label" style="margin-bottom:8px;">📅 처리 이력 (Audit Trail)</div>
+      <div style="background:#F9FAFB;border-radius:12px;padding:12px;">${historyHtml}</div>
+    </div>
+
+  </div>`);
+}
+
+// 처리 이력 저장소
+const _ruleActionHistory = {};
+
+function setRuleAction(id, type) {
+  const labels = { mandatory:'사규 필수반영', regulation:'규정/규칙 반영', manual:'매뉴얼/가이드라인', completed:'검토 완료', hold:'보류/협의중' };
+  const now = new Date().toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  _ruleActions[id] = { type, ts: now };
+  if (!_ruleActionHistory[id]) _ruleActionHistory[id] = [];
+  _ruleActionHistory[id].push({ label: labels[type] || type, ts: now });
+  showToast(`${labels[type]} 으로 분류되었습니다`);
+  closeModal();
+  setTimeout(() => { renderRules(); showRuleDetail(id); }, 120);
+}
+
+async function runAiAnalysis(id) {
+  const r = _rulesCache.find(x => x.id === id);
+  if (!r) return;
+  const p = r.prohibition || {};
+  const btn = document.querySelector(`button[onclick="runAiAnalysis('${id}')"]`);
+  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/classify-regulation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rule_id: id,
+        rule_code: r.rule_code,
+        rule_name: r.name,
+        rule_description: r.description,
+        law_name: p.law_name,
+        article: p.article,
+        prohibition_name: p.name,
+        prohibition_description: p.description,
+        priority: p.priority,
+        trigger_condition: r.trigger_condition,
+        first_duty: (r.duty||{}).first_duty,
+      })
+    });
+    const data = await res.json();
+    _aiAnalysisCache[id] = data;
+    showToast('AI 분류 분석 완료');
+    closeModal();
+    setTimeout(() => showRuleDetail(id), 120);
+  } catch(e) {
+    showToast('AI 분석 실패: ' + e.message);
+    if (btn) { btn.textContent = '🤖 AI 재분류'; btn.disabled = false; }
+  }
+}
+
+function showRuleStatDetail2(type) {
+  const typeMap = {
+    all:       { label:'전체 업무규칙',    fn: r => true },
+    mandatory: { label:'사규 필수반영',   fn: r => classifyRule(r) === 'mandatory' },
+    regulation:{ label:'규정/규칙 반영',  fn: r => classifyRule(r) === 'regulation' },
+    manual:    { label:'매뉴얼/가이드라인',fn: r => classifyRule(r) === 'manual' },
+    completed: { label:'검토 완료',       fn: r => (_ruleActions[r.id]?.type === 'completed') || r.status === 'completed' },
+    hold:      { label:'보류/협의중',     fn: r => _ruleActions[r.id]?.type === 'hold' },
+  };
+  const { label, fn } = typeMap[type] || typeMap['all'];
+  const filtered = _rulesCache.filter(fn);
+  showModal(mHeader(label) + `<div style="padding:14px 20px;display:flex;flex-direction:column;gap:8px;">
+    ${filtered.map(r => {
+      const p = r.prohibition || {};
+      const cls = classifyRule(r);
+      return `<div style="padding:12px 14px;border:1px solid #E5E7EB;border-radius:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+        onclick="closeModal();setTimeout(()=>showRuleDetail('${r.id}'),120)">
+        <div>
+          <div style="font-family:monospace;font-size:11px;color:#1D4ED8;font-weight:700;">${r.rule_code||'-'}</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px;">${r.name}</div>
+          <div style="font-size:11px;color:#6B7280;margin-top:1px;">${p.law_name||''}</div>
+        </div>
+        <span style="background:${classifyBg(cls)};color:${classifyColor(cls)};font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;">${classifyLabel(cls)}</span>
+      </div>`;
+    }).join('')}
+    ${filtered.length === 0 ? '<div style="text-align:center;padding:24px;color:#9CA3AF;">해당 항목 없음</div>' : ''}
+  </div>`);
 }
 
 // ═══════════════════════════════════════

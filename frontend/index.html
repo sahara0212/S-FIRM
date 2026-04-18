@@ -211,6 +211,9 @@
 
   <!-- TAB 4: 업무규칙 -->
   <div id="view-rules" class="fade-in hidden">
+    <div id="rules-banner" style="display:none;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px;">
+      <span id="rules-banner-msg" style="font-size:12px;font-weight:600;"></span>
+    </div>
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 24px;">
       <button onclick="exportData('json')" style="background:#F3F4F6; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-code" style="margin-right:5px"></i>JSON</button>
       <button onclick="exportData('excel')" style="background:#F3F4F6; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-table" style="margin-right:5px"></i>Excel</button>
@@ -707,9 +710,12 @@ function switchTab(tab) {
       if (_prohibCache.length === 0) autoExtractAll();
     });
   } else if (tab === 'duty') {
-    loadProhibitions().then(() => renderDuty());
+    loadProhibitions(true).then(() => renderDuty());
   } else if (tab === 'rules') {
-    loadRules().then(() => renderRules());
+    Promise.all([loadRules(true), loadProhibitions(true)]).then(() => {
+      renderRules();
+      if (_rulesCache.length === 0) autoGenerateRules();
+    });
   }
 }
 
@@ -1550,6 +1556,59 @@ async function autoExtractAll() {
   } finally {
     _extracting = false;
     renderProhibit();
+  }
+}
+
+function _setRulesBanner(msg, color='#92400E', bg='#FFF7ED', border='#F59E0B') {
+  const banner = document.getElementById('rules-banner');
+  const msgEl  = document.getElementById('rules-banner-msg');
+  if (!banner || !msgEl) return;
+  if (!msg) { banner.style.display = 'none'; return; }
+  banner.style.background  = bg;
+  banner.style.borderColor = border;
+  msgEl.style.color        = color;
+  msgEl.textContent        = msg;
+  banner.style.display     = '';
+}
+
+async function autoGenerateRules() {
+  if (_extracting) return;
+
+  // 금지행위 없으면 먼저 추출
+  if (_prohibCache.length === 0) {
+    _setRulesBanner('⏳ 금지행위 추출 중... (20~40초)');
+    await autoExtractAll();
+    await loadProhibitions(true);
+  }
+
+  const withMapping = _prohibCache.filter(p => p.mapping);
+  if (withMapping.length === 0) {
+    _setRulesBanner('금지행위 매핑 데이터가 없습니다. 금지행위 추출 탭을 먼저 실행하세요.', '#6B7280', '#F9FAFB', '#D1D5DB');
+    return;
+  }
+
+  _extracting = true;
+  _setRulesBanner(`⏳ 업무규칙 생성 중... ${withMapping.length}건 처리 (30~60초)`);
+
+  try {
+    const resp = await fetch(
+      `${API_BASE}/api/v1/clients/${ACTIVE_CLIENT_ID}/sessions/${ACTIVE_SESSION_ID}/generate-rules`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}),
+        signal: AbortSignal.timeout(300000) }
+    );
+    const data = await resp.json();
+    if (resp.ok && data.status === 'success') {
+      _setRulesBanner(`✅ ${data.rule_count}건 업무규칙 생성 완료`, '#065F46', '#F0FDF4', '#10B981');
+      _rulesLoaded = false;
+      await loadRules(true);
+    } else {
+      _setRulesBanner(`❌ 규칙 생성 실패: ${data.detail || data.message || JSON.stringify(data)}`, '#991B1B', '#FEF2F2', '#EF4444');
+    }
+  } catch (e) {
+    _setRulesBanner(`❌ 오류: ${e.message}`, '#991B1B', '#FEF2F2', '#EF4444');
+  } finally {
+    _extracting = false;
+    renderRules();
   }
 }
 

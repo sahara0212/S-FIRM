@@ -8,6 +8,7 @@ import anthropic
 from app.services.law_api import fetcher
 from app.core.analyzer import analyzer
 from app.db.database import init_db
+from app.db.seed import seed_initial_data
 from app.api import clients as clients_router
 from app.api import documents as documents_router
 from app.api import analysis as analysis_router
@@ -20,8 +21,9 @@ _FRONTEND_INDEX = os.path.join(_BASE_DIR, "frontend", "index.html")
 
 app = FastAPI(title="S-FIRM Compliance API", version="2.0")
 
-# DB 테이블 생성 (앱 시작 시 1회)
+# DB 테이블 생성 + 초기 데이터 시드 (앱 시작 시 1회)
 init_db()
+seed_initial_data()
 
 # 라우터 등록
 app.include_router(clients_router.router)

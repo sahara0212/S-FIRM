@@ -112,6 +112,24 @@
     .upload-drop-zone:hover,.upload-drop-zone.dragover { border-color:#6366F1;background:#EEF2FF; }
     .industry-chip { padding:8px 14px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;color:#374151; }
     .industry-chip.selected { border-color:#000;background:#000;color:#fff; }
+
+    /* 역할 모드 */
+    .role-switcher-btn { display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:10px;border:1.5px solid #DDD6FE;background:#F5F3FF;cursor:pointer;transition:all 0.18s;font-size:12px;font-weight:700;color:#5B21B6;flex-shrink:0; }
+    .role-switcher-btn:hover { border-color:#8B5CF6;background:#EDE9FE; }
+    .role-dropdown { position:fixed;background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,0.14);z-index:500;padding:8px;min-width:220px; }
+    .role-option { display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.12s;font-size:12px;font-weight:600;color:#374151; }
+    .role-option:hover { background:#F5F3FF; }
+    .role-option.active-role { background:#EDE9FE;color:#5B21B6; }
+    /* 워크플로우 레인 */
+    .wf-step { display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap; }
+    .wf-step.done    { color:#059669;background:#ECFDF5; }
+    .wf-step.current { color:#6366F1;background:#EEF2FF; }
+    .wf-step.pending { color:#9CA3AF;background:#F3F4F6; }
+    .wf-arrow { color:#D1D5DB;font-size:11px;padding:0 2px;flex-shrink:0; }
+    /* 역할 컨텍스트 배너 */
+    .role-ctx-banner { border-radius:12px;padding:11px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600;animation:fadeIn 0.2s ease; }
+    /* 토스트 */
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
   </style>
 </head>
 <body>
@@ -139,6 +157,16 @@
       <span id="client-switcher-icon">🏢</span>
       <span class="client-switcher-name" id="client-switcher-name">KB라이프생명</span>
       <span style="color:#9CA3AF;font-size:10px;margin-left:2px;">▾</span>
+    </button>
+
+    <!-- 구분선 -->
+    <div style="width:1px;height:28px;background:#E5E7EB;margin:0 10px;flex-shrink:0;"></div>
+
+    <!-- 역할 선택 -->
+    <button class="role-switcher-btn" onclick="openRolePicker(event)" title="역할 전환 — 내 역할에 맞는 화면으로 전환">
+      <span id="role-icon-hdr">👤</span>
+      <span id="role-label-hdr">부서원</span>
+      <span style="font-size:9px;opacity:0.6;">▾</span>
     </button>
 
     <!-- 스페이서 -->
@@ -338,6 +366,9 @@
 
   <!-- TAB 5: 이행점검 -->
   <div id="view-inspection" class="fade-in hidden">
+
+    <!-- 역할 컨텍스트 배너 -->
+    <div id="insp-role-banner"></div>
 
     <!-- 데모 모드 배너 -->
     <div id="insp-demo-banner" class="demo-tab-banner" style="display:none;">
@@ -869,20 +900,166 @@ let _rulesLoaded  = false;
 let _ruleActions  = {};   // id → {status:'승인'|'검토'|'협의필요'|'보류', ts}
 let _aiAnalysisCache = {}; // id → AI classification result
 
+// ── 역할 모드 ──────────────────────────────────────────
+const ROLES = {
+  '부서원': {
+    icon:'👤', color:'#374151', bg:'#F3F4F6', borderColor:'#D1D5DB',
+    hint:'내 담당 항목의 점검 결과를 입력하고 검토를 요청하세요.',
+    wf_action_at: 0,   // 이 단계에서 액션 가능
+    wf_action_label: '→ 검토 요청',
+    wf_action_style: 'background:#6366F1;color:#fff;',
+  },
+  '부서장': {
+    icon:'👔', color:'#1D4ED8', bg:'#EFF6FF', borderColor:'#93C5FD',
+    hint:'부서원이 요청한 점검 결과를 검토하고 확인해주세요.',
+    wf_action_at: 1,
+    wf_action_label: '✓ 검토 확인',
+    wf_action_style: 'background:#1D4ED8;color:#fff;',
+  },
+  '팀장·책무임원': {
+    icon:'🏛️', color:'#5B21B6', bg:'#F5F3FF', borderColor:'#C4B5FD',
+    hint:'부서장 검토 완료 항목을 확인하고 최종 승인해주세요.',
+    wf_action_at: 2,
+    wf_action_label: '✅ 최종 승인',
+    wf_action_style: 'background:#5B21B6;color:#fff;',
+  },
+  '대표이사': {
+    icon:'👑', color:'#92400E', bg:'#FFF7ED', borderColor:'#FCD34D',
+    hint:'분기 보고서 탭에서 경영진 결재를 진행하세요.',
+    wf_action_at: -1,
+    wf_action_label: '',
+    wf_action_style: '',
+  },
+};
+let _ACTIVE_ROLE = '부서원';
+
+function openRolePicker(e) {
+  e?.stopPropagation();
+  const existing = document.getElementById('role-dropdown');
+  if (existing) { existing.remove(); return; }
+  const btn = document.querySelector('.role-switcher-btn');
+  const rect = btn.getBoundingClientRect();
+  const dd = document.createElement('div');
+  dd.id = 'role-dropdown';
+  dd.className = 'role-dropdown';
+  dd.style.cssText = `top:${rect.bottom + 6}px;left:${rect.left}px;`;
+  dd.innerHTML = `
+    <div style="font-size:10px;font-weight:800;color:#9CA3AF;padding:4px 12px 6px;text-transform:uppercase;letter-spacing:0.08em;">역할 선택</div>
+    ${Object.entries(ROLES).map(([role, r]) => `
+      <div class="role-option ${_ACTIVE_ROLE === role ? 'active-role' : ''}" onclick="setRole('${role}')">
+        <span style="font-size:18px;line-height:1;">${r.icon}</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:700;">${role}</div>
+          <div style="font-size:10px;color:#9CA3AF;font-weight:500;margin-top:1px;">${r.hint.slice(0,28)}…</div>
+        </div>
+        ${_ACTIVE_ROLE === role ? '<span style="color:#6366F1;font-size:13px;">✓</span>' : ''}
+      </div>`).join('')}`;
+  document.body.appendChild(dd);
+  setTimeout(() => document.addEventListener('click', _closeRolePickerOutside), 10);
+}
+
+function _closeRolePickerOutside(e) {
+  if (!document.getElementById('role-dropdown')?.contains(e.target)) {
+    document.getElementById('role-dropdown')?.remove();
+    document.removeEventListener('click', _closeRolePickerOutside);
+  }
+}
+
+function setRole(role) {
+  _ACTIVE_ROLE = role;
+  const r = ROLES[role];
+  document.getElementById('role-icon-hdr').textContent = r.icon;
+  document.getElementById('role-label-hdr').textContent = role;
+  const btn = document.querySelector('.role-switcher-btn');
+  if (btn) {
+    btn.style.background = r.bg;
+    btn.style.color = r.color;
+    btn.style.borderColor = r.borderColor;
+  }
+  document.getElementById('role-dropdown')?.remove();
+  document.removeEventListener('click', _closeRolePickerOutside);
+  // 현재 탭 재렌더
+  const active = document.querySelector('.tab-btn.active')?.id?.replace('t-','');
+  if (active === 'inspection') { renderRoleContextBanner(); renderInspectionList(); }
+  showToast(`${r.icon} ${role} 뷰로 전환`);
+}
+
+function renderRoleContextBanner() {
+  const banner = document.getElementById('insp-role-banner');
+  if (!banner) return;
+  const r = ROLES[_ACTIVE_ROLE];
+  if (_ACTIVE_ROLE === '대표이사') {
+    banner.innerHTML = `<div class="role-ctx-banner" style="background:${r.bg};border:1.5px solid ${r.borderColor};color:${r.color};">
+      <span style="font-size:20px;">${r.icon}</span>
+      <div style="flex:1;"><div style="font-weight:700;">${_ACTIVE_ROLE}</div><div style="font-size:11px;opacity:0.75;">${r.hint}</div></div>
+      <button onclick="switchTab('report')" style="padding:6px 14px;border-radius:8px;border:none;background:${r.color};color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">→ 분기 보고서</button>
+    </div>`;
+    return;
+  }
+  const actionAt = r.wf_action_at;
+  const pending = _inspCache.filter(i => (i.wf_step ?? 0) === actionAt);
+  const total   = _inspCache.filter(i => (i.wf_step ?? 0) >= actionAt).length;
+  const done    = _inspCache.filter(i => (i.wf_step ?? 0) > actionAt).length;
+  const count   = pending.length;
+  const pct     = total > 0 ? Math.round(done / total * 100) : 0;
+  banner.innerHTML = `<div class="role-ctx-banner" style="background:${r.bg};border:1.5px solid ${r.borderColor};color:${r.color};flex-direction:column;align-items:stretch;gap:8px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">${r.icon}</span>
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:13px;">${_ACTIVE_ROLE} 뷰</div>
+        <div style="font-size:11px;opacity:0.75;margin-top:1px;">${r.hint}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${count > 0
+          ? `<div style="font-size:18px;font-weight:900;color:${r.color};">${count}건</div><div style="font-size:10px;font-weight:600;opacity:0.7;">처리 대기</div>`
+          : `<div style="font-size:13px;font-weight:700;color:#059669;">✅ 완료</div>`}
+      </div>
+    </div>
+    <div style="background:rgba(0,0,0,0.08);border-radius:99px;height:4px;overflow:hidden;">
+      <div style="height:100%;border-radius:99px;background:${r.color};width:${pct}%;transition:width 0.5s;"></div>
+    </div>
+  </div>`;
+}
+
+function advanceWorkflow(ruleId) {
+  const item = _inspCache.find(i => i.rule_id === ruleId);
+  if (!item) return;
+  const r = ROLES[_ACTIVE_ROLE];
+  if (r.wf_action_at < 0 || (item.wf_step ?? 0) !== r.wf_action_at) return;
+  item.wf_step = (item.wf_step ?? 0) + 1;
+  const row = document.getElementById(`insp-row-${ruleId}`);
+  if (row) row.outerHTML = inspRowHtml(item);
+  renderRoleContextBanner();
+  const msgs = ['', '검토 요청 완료!', '부서장 검토 확인 완료!', '최종 승인 완료! ✅'];
+  showToast(msgs[item.wf_step] || '처리 완료');
+}
+
+function showToast(msg) {
+  document.querySelectorAll('.sfirm-toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'sfirm-toast';
+  t.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 22px;border-radius:14px;font-size:13px;font-weight:700;z-index:9999;animation:toastIn 0.25s ease;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.25);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.style.opacity = '0', 1800);
+  setTimeout(() => t.remove(), 2100);
+}
+
 // ── 데모 모드 ──────────────────────────────────────────
 let _DEMO_MODE = false;
 
 const DEMO_INSPECTION_ITEMS = [
-  { rule_id:'r-demo-001', rule_code:'RULE-PIP-001', name:'자기계열사 투자 한도 준수',          law_name:'자본시장법',       article:'제81조',    priority:'HIGH',   first_duty:'CPO',  result:'적정',    method:'대면',    note:'분기별 포트폴리오 검토 완료', check_id:'chk-d-001' },
-  { rule_id:'r-demo-002', rule_code:'RULE-PIP-002', name:'내부자 거래 사전 신고',              law_name:'자본시장법',       article:'제172조',   priority:'HIGH',   first_duty:'CCO',  result:'적정',    method:'비대면',  note:'전산 시스템 자동 점검', check_id:'chk-d-002' },
-  { rule_id:'r-demo-003', rule_code:'RULE-PIP-003', name:'고객정보 보호 및 암호화 기준 준수', law_name:'개인정보보호법',   article:'제29조',    priority:'HIGH',   first_duty:'CISO', result:'개선필요', method:'대면',    note:'일부 레거시 시스템 암호화 미적용 확인', check_id:'chk-d-003' },
-  { rule_id:'r-demo-004', rule_code:'RULE-PIP-004', name:'이해충돌 사전 공시 의무',            law_name:'금융소비자보호법', article:'제18조',    priority:'MEDIUM', first_duty:'CPO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-004' },
-  { rule_id:'r-demo-005', rule_code:'RULE-PIP-005', name:'약관 변경 시 사전 고지 절차',        law_name:'금융소비자보호법', article:'제19조',    priority:'MEDIUM', first_duty:'CCO',  result:'적정',    method:'비대면',  note:'고지 발송 시스템 정상 작동', check_id:'chk-d-005' },
-  { rule_id:'r-demo-006', rule_code:'RULE-PIP-006', name:'임직원 금융투자상품 보유·매매 신고', law_name:'자본시장법',       article:'제63조',    priority:'HIGH',   first_duty:'CPO',  result:'개선필요', method:'대면',    note:'신고 기한 초과자 3명 확인, 시정 요구', check_id:'chk-d-006' },
-  { rule_id:'r-demo-007', rule_code:'RULE-PIP-007', name:'대출 실행 전 적합성 원칙 준수',      law_name:'은행법',           article:'제52조의2', priority:'MEDIUM', first_duty:'CRO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-007' },
-  { rule_id:'r-demo-008', rule_code:'RULE-PIP-008', name:'파생상품 위험관리 한도 모니터링',   law_name:'자본시장법',       article:'제166조',   priority:'LOW',    first_duty:'CRO',  result:'해당없음', method:'해당없음', note:'해당 상품 미취급', check_id:'chk-d-008' },
-  { rule_id:'r-demo-009', rule_code:'RULE-PIP-009', name:'내부통제기준 교육 이수 의무',        law_name:'금융회사지배구조법',article:'제24조',   priority:'LOW',    first_duty:'CCO',  result:'해당없음', method:'해당없음', note:'당월 교육 일정 없음', check_id:'chk-d-009' },
-  { rule_id:'r-demo-010', rule_code:'RULE-PIP-010', name:'자금세탁방지 고객 확인 절차 이행',  law_name:'특정금융거래법',   article:'제5조의2',  priority:'HIGH',   first_duty:'CCO',  result:'미점검',   method:'대면',    note:'', check_id:null },
+  // wf_step: 0=부서원입력중  1=검토요청(부서장대기)  2=부서장검토완료(책무임원대기)  3=최종승인완료
+  { rule_id:'r-demo-001', rule_code:'RULE-PIP-001', name:'자기계열사 투자 한도 준수',          law_name:'자본시장법',       article:'제81조',    priority:'HIGH',   first_duty:'CPO',  result:'적정',    method:'대면',    note:'분기별 포트폴리오 검토 완료', check_id:'chk-d-001', wf_step:3 },
+  { rule_id:'r-demo-002', rule_code:'RULE-PIP-002', name:'내부자 거래 사전 신고',              law_name:'자본시장법',       article:'제172조',   priority:'HIGH',   first_duty:'CCO',  result:'적정',    method:'비대면',  note:'전산 시스템 자동 점검', check_id:'chk-d-002', wf_step:3 },
+  { rule_id:'r-demo-003', rule_code:'RULE-PIP-003', name:'고객정보 보호 및 암호화 기준 준수', law_name:'개인정보보호법',   article:'제29조',    priority:'HIGH',   first_duty:'CISO', result:'개선필요', method:'대면',    note:'일부 레거시 시스템 암호화 미적용 확인', check_id:'chk-d-003', wf_step:2 },
+  { rule_id:'r-demo-004', rule_code:'RULE-PIP-004', name:'이해충돌 사전 공시 의무',            law_name:'금융소비자보호법', article:'제18조',    priority:'MEDIUM', first_duty:'CPO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-004', wf_step:2 },
+  { rule_id:'r-demo-005', rule_code:'RULE-PIP-005', name:'약관 변경 시 사전 고지 절차',        law_name:'금융소비자보호법', article:'제19조',    priority:'MEDIUM', first_duty:'CCO',  result:'적정',    method:'비대면',  note:'고지 발송 시스템 정상 작동', check_id:'chk-d-005', wf_step:2 },
+  { rule_id:'r-demo-006', rule_code:'RULE-PIP-006', name:'임직원 금융투자상품 보유·매매 신고', law_name:'자본시장법',       article:'제63조',    priority:'HIGH',   first_duty:'CPO',  result:'개선필요', method:'대면',    note:'신고 기한 초과자 3명 확인, 시정 요구', check_id:'chk-d-006', wf_step:1 },
+  { rule_id:'r-demo-007', rule_code:'RULE-PIP-007', name:'대출 실행 전 적합성 원칙 준수',      law_name:'은행법',           article:'제52조의2', priority:'MEDIUM', first_duty:'CRO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-007', wf_step:0 },
+  { rule_id:'r-demo-008', rule_code:'RULE-PIP-008', name:'파생상품 위험관리 한도 모니터링',   law_name:'자본시장법',       article:'제166조',   priority:'LOW',    first_duty:'CRO',  result:'해당없음', method:'해당없음', note:'해당 상품 미취급', check_id:'chk-d-008', wf_step:0 },
+  { rule_id:'r-demo-009', rule_code:'RULE-PIP-009', name:'내부통제기준 교육 이수 의무',        law_name:'금융회사지배구조법',article:'제24조',   priority:'LOW',    first_duty:'CCO',  result:'해당없음', method:'해당없음', note:'당월 교육 일정 없음', check_id:'chk-d-009', wf_step:0 },
+  { rule_id:'r-demo-010', rule_code:'RULE-PIP-010', name:'자금세탁방지 고객 확인 절차 이행',  law_name:'특정금융거래법',   article:'제5조의2',  priority:'HIGH',   first_duty:'CCO',  result:'미점검',   method:'대면',    note:'', check_id:null, wf_step:0 },
 ];
 
 const DEMO_IMPROVEMENT_ITEMS = [
@@ -1145,7 +1322,7 @@ function switchTab(tab) {
     });
   } else if (tab === 'inspection') {
     initInspectionPeriod();
-    loadInspection();
+    loadInspection().then(() => renderRoleContextBanner());
   } else if (tab === 'improvement') {
     initImprPeriod();
     loadImprovement();
@@ -3370,6 +3547,7 @@ function renderInspectionList() {
   }
 
   body.innerHTML = items.map(item => inspRowHtml(item)).join('');
+  renderRoleContextBanner();
 }
 
 function inspRowHtml(item) {
@@ -3392,6 +3570,31 @@ function inspRowHtml(item) {
       style="padding:4px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1.5px solid ${active?cfg.color:'#E5E7EB'};background:${active?cfg.bg:'#fff'};color:${active?cfg.color:'#9CA3AF'};cursor:pointer;transition:all 0.15s;">${m}</button>`;
   }).join('');
 
+  // 워크플로우 레인 계산
+  const wfStep = item.wf_step ?? 0;
+  const WF_LABELS = ['부서원 입력', '부서장 검토', '책무임원 승인', '승인완료'];
+  const WF_ICONS  = ['✏️', '🔍', '✅', '🏛️'];
+  const wfSteps = [0, 1, 2].map(s => {
+    const cls = wfStep > s ? 'done' : wfStep === s ? 'current' : 'pending';
+    return `<span class="wf-step ${cls}">${WF_ICONS[s]} ${WF_LABELS[s]}</span>`;
+  }).join('<span class="wf-arrow">›</span>');
+
+  // 역할별 액션 버튼
+  const activeRole = ROLES[_ACTIVE_ROLE];
+  let roleActionBtn = '';
+  if (activeRole && activeRole.wf_action_at >= 0 && wfStep === activeRole.wf_action_at) {
+    roleActionBtn = `<button onclick="advanceWorkflow('${item.rule_id}')"
+      style="padding:5px 14px;border-radius:8px;border:none;${activeRole.wf_action_style}font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+      ${activeRole.wf_action_label}
+    </button>`;
+  } else if (wfStep === 3) {
+    roleActionBtn = `<span style="font-size:11px;font-weight:700;color:#059669;white-space:nowrap;">✅ 승인완료</span>`;
+  }
+
+  // 점검 입력 영역은 부서원(wf_step=0) 또는 미점검 항목일 때만 활성
+  const inputDisabled = wfStep > 0 && item.result !== '미점검';
+  const inputOpacity = inputDisabled ? 'opacity:0.45;pointer-events:none;' : '';
+
   return `<div id="insp-row-${item.rule_id}" style="padding:16px 20px;border-bottom:1px solid #F3F4F6;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <!-- 규칙 정보 -->
@@ -3410,12 +3613,12 @@ function inspRowHtml(item) {
       </div>
     </div>
     <!-- 점검 결과 선택 -->
-    <div style="margin-top:12px;">
+    <div style="margin-top:12px;${inputOpacity}">
       <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">점검 결과</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${resultBtns}</div>
     </div>
     <!-- 점검 방식 -->
-    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;${inputOpacity}">
       <div>
         <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em;">점검 방식</div>
         <div style="display:flex;gap:5px;">${methodBtns}</div>
@@ -3428,7 +3631,13 @@ function inspRowHtml(item) {
           style="width:100%;padding:6px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#374151;outline:none;">
       </div>
     </div>
-    <div id="insp-saved-${item.rule_id}" style="margin-top:6px;font-size:10px;color:#9CA3AF;height:14px;"></div>
+    <!-- 워크플로우 레인 -->
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #E5E7EB;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">검토·승인</span>
+      <div style="display:flex;align-items:center;gap:3px;flex:1;flex-wrap:wrap;">${wfSteps}</div>
+      ${roleActionBtn}
+    </div>
+    <div id="insp-saved-${item.rule_id}" style="margin-top:4px;font-size:10px;color:#9CA3AF;height:14px;"></div>
   </div>`;
 }
 

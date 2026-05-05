@@ -965,7 +965,7 @@ const API_BASE = (() => {
   // 로컬 FastAPI 직접 서빙 (port 8000) → 상대경로
   if (port === '8000') return '';
   // 로컬 정적 서버 (port 3000 등) → 로컬 백엔드 직접 지정
-  return 'http://localhost:8000';
+  return 'http://localhost:8001';
 })();
 
 function setDataBadge(isLive, fetchedAt) {

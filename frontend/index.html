@@ -197,7 +197,8 @@
 
   <div style="max-width: 760px; margin: 0 auto; padding: 0 24px 9px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
     <div style="display: flex; background: #F3F4F6; border-radius: 12px; padding: 4px; gap: 2px; width: fit-content;">
-      <button class="tab-btn active" onclick="switchTab('monitor')" id="t-monitor">법령 모니터링</button>
+      <button class="tab-btn active" onclick="switchTab('dashboard')" id="t-dashboard">대시보드</button>
+      <button class="tab-btn" onclick="switchTab('monitor')" id="t-monitor">법령 모니터링</button>
       <button class="tab-btn" onclick="switchTab('prohibit')" id="t-prohibit">금지행위 추출</button>
       <button class="tab-btn" onclick="switchTab('duty')" id="t-duty">책무 매핑</button>
       <button class="tab-btn" onclick="switchTab('rules')" id="t-rules">사규/규칙 반영</button>
@@ -274,8 +275,85 @@
 <!-- MAIN -->
 <main style="max-width: 760px; margin: 0 auto; padding: 28px 24px 60px;">
 
+  <!-- TAB 0: 대시보드 -->
+  <div id="view-dashboard" class="fade-in">
+    <!-- 역할별 Hero 배너 -->
+    <div id="db-hero" style="border-radius:20px;padding:24px 28px;margin-bottom:20px;background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 60%,#1a1a3e 100%);color:#fff;"></div>
+
+    <!-- 핵심 지표 3종 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;">
+      <!-- D-Day -->
+      <div style="background:#fff;border:1.5px solid #FEE2E2;border-radius:18px;padding:22px 20px;text-align:center;box-shadow:0 2px 12px rgba(220,38,38,0.07);">
+        <div style="font-size:10px;font-weight:800;color:#EF4444;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">이행점검 마감</div>
+        <div id="db-dday-num" style="font-size:42px;font-weight:900;color:#DC2626;line-height:1;"></div>
+        <div id="db-dday-label" style="font-size:11px;color:#9CA3AF;margin-top:6px;font-weight:600;"></div>
+      </div>
+      <!-- 전체 완료율 -->
+      <div style="background:#fff;border:1.5px solid #E5E7EB;border-radius:18px;padding:22px 20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="font-size:10px;font-weight:800;color:#9CA3AF;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">전체 완료율</div>
+        <div id="db-ring" style="display:flex;align-items:center;justify-content:center;"></div>
+      </div>
+      <!-- 내 처리대기 -->
+      <div id="db-pending-card" style="background:#fff;border:1.5px solid #E0E7FF;border-radius:18px;padding:22px 20px;text-align:center;box-shadow:0 2px 12px rgba(99,102,241,0.07);cursor:pointer;" onclick="switchTab('inspection')">
+        <div style="font-size:10px;font-weight:800;color:#6366F1;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">내 처리대기</div>
+        <div id="db-pending-num" style="font-size:42px;font-weight:900;color:#4F46E5;line-height:1;"></div>
+        <div id="db-pending-label" style="font-size:11px;color:#9CA3AF;margin-top:6px;font-weight:600;"></div>
+      </div>
+    </div>
+
+    <!-- 이행점검 워크플로우 파이프라인 -->
+    <div style="background:#fff;border:1.5px solid #E5E7EB;border-radius:18px;padding:22px 24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-size:13px;font-weight:800;color:#111;">이행점검 워크플로우 현황</div>
+        <button onclick="switchTab('inspection')" style="font-size:11px;font-weight:700;color:#6366F1;background:#EEF2FF;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;">이행점검 탭 →</button>
+      </div>
+      <div id="db-pipeline" style="display:flex;align-items:stretch;gap:0;"></div>
+    </div>
+
+    <!-- 점검 결과 분포 + 개선조치 현황 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <!-- 점검 결과 분포 -->
+      <div style="background:#fff;border:1.5px solid #E5E7EB;border-radius:18px;padding:22px 24px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="font-size:13px;font-weight:800;color:#111;margin-bottom:16px;">점검 결과 분포</div>
+        <div id="db-result-dist"></div>
+      </div>
+      <!-- 개선조치 현황 -->
+      <div style="background:#fff;border:1.5px solid #E5E7EB;border-radius:18px;padding:22px 24px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:800;color:#111;">개선조치 현황</div>
+          <button onclick="switchTab('improvement')" style="font-size:11px;font-weight:700;color:#059669;background:#ECFDF5;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;">개선조치 탭 →</button>
+        </div>
+        <div id="db-improvement"></div>
+      </div>
+    </div>
+
+    <!-- 빠른 이동 카드 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <button onclick="switchTab('inspection')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;padding:18px 14px;cursor:pointer;text-align:center;transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.borderColor='#6366F1';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform=''">
+        <div style="font-size:22px;margin-bottom:8px;">📋</div>
+        <div style="font-size:12px;font-weight:800;color:#111;">이행점검</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">결과 입력·검토</div>
+      </button>
+      <button onclick="switchTab('improvement')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;padding:18px 14px;cursor:pointer;text-align:center;transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.borderColor='#059669';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform=''">
+        <div style="font-size:22px;margin-bottom:8px;">🔧</div>
+        <div style="font-size:12px;font-weight:800;color:#111;">개선조치</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">조치 등록·추적</div>
+      </button>
+      <button onclick="switchTab('report')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;padding:18px 14px;cursor:pointer;text-align:center;transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.borderColor='#5B21B6';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform=''">
+        <div style="font-size:22px;margin-bottom:8px;">📊</div>
+        <div style="font-size:12px;font-weight:800;color:#111;">분기 보고서</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">집계·결재</div>
+      </button>
+      <button onclick="switchTab('monitor')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;padding:18px 14px;cursor:pointer;text-align:center;transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.04);" onmouseover="this.style.borderColor='#0F172A';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#E5E7EB';this.style.transform=''">
+        <div style="font-size:22px;margin-bottom:8px;">⚖️</div>
+        <div style="font-size:12px;font-weight:800;color:#111;">법령 모니터링</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">실시간 법령 변경</div>
+      </button>
+    </div>
+  </div>
+
   <!-- TAB 1: 법령 모니터링 -->
-  <div id="view-monitor" class="fade-in">
+  <div id="view-monitor" class="fade-in hidden">
 
     <p class="sec-label" id="summary-label">기간 요약</p>
     <div style="display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px;" id="weekly-grid"></div>
@@ -1052,6 +1130,7 @@ function setRole(role) {
   // 현재 탭 재렌더
   const active = document.querySelector('.tab-btn.active')?.id?.replace('t-','');
   if (active === 'inspection') { renderRoleContextBanner(); renderInspectionList(); }
+  if (active === 'dashboard') renderDashboard();
   showToast(`${r.icon} ${role} 뷰로 전환`);
 }
 
@@ -1589,17 +1668,258 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 고객사 목록 백그라운드 로드 + 헤더 업데이트
   loadClients().then(() => updateClientHeader());
 
-  // 법령 모니터링 탭: 법제처 API 로딩 후 렌더
-  await loadFromAPI();
-  renderMonitor();
-  // 나머지 탭은 탭 전환 시 lazy load
+  // 대시보드 탭이 기본 — 백그라운드에서 이행점검 데이터 프리로드 후 렌더
+  loadInspection().then(() => {
+    loadDashboard();
+    // 법령 모니터링 데이터도 백그라운드 로드 (모니터링 탭 전환 시 즉시 표시)
+    loadFromAPI().then(() => {});
+  });
 });
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+async function loadDashboard() {
+  // 데모 모드면 직접 DEMO_INSPECTION_ITEMS 사용 (이행점검 탭 select 불필요)
+  if (_DEMO_MODE) {
+    if (!_inspCache || _inspCache.length === 0) {
+      _inspCache = DEMO_INSPECTION_ITEMS.map(i => ({...i}));
+    }
+    renderDashboard();
+    return;
+  }
+  // 실제 모드: 이행점검 탭 period 초기화 후 API 호출
+  if (!document.getElementById('insp-period-select')?.value) {
+    initInspectionPeriod();
+    await new Promise(r => setTimeout(r, 50));
+  }
+  if (!_inspCache || _inspCache.length === 0) await loadInspection();
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const cache = _inspCache;
+  const total = cache.length;
+  const role = ROLES[_ACTIVE_ROLE] || ROLES['부서원'];
+
+  // ── D-Day (당월 말일까지) ──
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const diff = Math.ceil((lastDay - now) / 86400000);
+  const ddEl = document.getElementById('db-dday-num');
+  const ddLbl = document.getElementById('db-dday-label');
+  if (ddEl) {
+    ddEl.textContent = diff <= 0 ? 'D-Day' : `D-${diff}`;
+    ddEl.style.color = diff <= 5 ? '#DC2626' : diff <= 10 ? '#D97706' : '#1D4ED8';
+  }
+  if (ddLbl) ddLbl.textContent = `${lastDay.getFullYear()}.${String(lastDay.getMonth()+1).padStart(2,'0')}.${String(lastDay.getDate()).padStart(2,'0')} 마감`;
+
+  // ── 완료율 SVG 링 ──
+  const approved = cache.filter(i => (i.wf_step ?? 0) === 3).length;
+  const pct = total > 0 ? Math.round(approved / total * 100) : 0;
+  const ringEl = document.getElementById('db-ring');
+  if (ringEl) {
+    const c = pct >= 80 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+    const dash = pct;
+    ringEl.innerHTML = `
+      <div style="position:relative;width:88px;height:88px;">
+        <svg viewBox="0 0 36 36" width="88" height="88" style="transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.915" fill="none" stroke="#F3F4F6" stroke-width="3.5"/>
+          <circle cx="18" cy="18" r="15.915" fill="none" stroke="${c}" stroke-width="3.5"
+            stroke-dasharray="${dash} ${100-dash}" stroke-linecap="round"
+            style="transition:stroke-dasharray 0.8s ease;"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div style="font-size:18px;font-weight:900;color:${c};line-height:1;">${pct}%</div>
+          <div style="font-size:9px;color:#9CA3AF;font-weight:700;">${approved}/${total}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── 내 처리대기 ──
+  const pendEl = document.getElementById('db-pending-num');
+  const pendLbl = document.getElementById('db-pending-label');
+  const pendCard = document.getElementById('db-pending-card');
+  if (pendEl) {
+    let myPending, myLabel;
+    if (_ACTIVE_ROLE === '책무담당자') {
+      myPending = cache.filter(i => (i.wf_step ?? 0) === 0 && i.result === '미점검').length;
+      myLabel = '미입력 항목';
+    } else if (role.wf_action_at >= 0) {
+      myPending = cache.filter(i => (i.wf_step ?? 0) === role.wf_action_at).length;
+      myLabel = role.wf_action_label.replace(/→|✓|✅/g, '').trim() + ' 대기';
+    } else {
+      myPending = total;
+      myLabel = '전체 항목';
+    }
+    pendEl.textContent = myPending;
+    if (pendLbl) pendLbl.textContent = myLabel;
+    if (pendCard) {
+      pendCard.style.borderColor = myPending > 0 ? '#A5B4FC' : '#D1FAE5';
+      pendEl.style.color = myPending > 0 ? '#4F46E5' : '#059669';
+    }
+  }
+
+  // ── Hero 배너 (역할별) ──
+  const heroEl = document.getElementById('db-hero');
+  if (heroEl) {
+    const inReview  = cache.filter(i => (i.wf_step ?? 0) >= 1 && (i.wf_step ?? 0) < 3).length;
+    const notInput  = cache.filter(i => (i.wf_step ?? 0) === 0 && i.result === '미점검').length;
+    const myAct     = role.wf_action_at >= 0
+      ? cache.filter(i => (i.wf_step ?? 0) === role.wf_action_at).length : 0;
+
+    const heroRows = {
+      '책무담당자': `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:28px;">📋</div>
+          <div style="flex:1;min-width:160px;">
+            <div style="font-size:16px;font-weight:900;letter-spacing:-0.3px;">준법감시부 관제 현황</div>
+            <div style="font-size:12px;opacity:0.65;margin-top:3px;">${now.getFullYear()}년 ${now.getMonth()+1}월 이행점검 기준</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            ${notInput > 0 ? `<div style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:8px 16px;text-align:center;"><div style="font-size:20px;font-weight:900;">${notInput}</div><div style="font-size:10px;opacity:0.8;">미입력 항목</div></div>` : ''}
+            <div style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);border-radius:12px;padding:8px 16px;text-align:center;"><div style="font-size:20px;font-weight:900;">${inReview}</div><div style="font-size:10px;opacity:0.8;">검토·승인 대기</div></div>
+            <div style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);border-radius:12px;padding:8px 16px;text-align:center;"><div style="font-size:20px;font-weight:900;">${approved}</div><div style="font-size:10px;opacity:0.8;">최종 승인</div></div>
+          </div>
+          ${notInput > 0 ? `<button onclick="switchTab('inspection');showToast('미입력 부서에 독촉 발송 완료')" style="background:#EF4444;border:none;color:#fff;border-radius:10px;padding:10px 18px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⚠️ 미입력 ${notInput}건 독촉</button>` : `<div style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);border-radius:10px;padding:10px 18px;font-size:12px;font-weight:800;white-space:nowrap;">✅ 전원 입력 완료</div>`}
+        </div>`,
+      '부서원': `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:28px;">👤</div>
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:900;">안녕하세요! 오늘의 할 일을 확인하세요.</div>
+            <div style="font-size:12px;opacity:0.65;margin-top:3px;">내 담당 항목의 점검 결과를 입력하고 검토를 요청하세요.</div>
+          </div>
+          ${myAct > 0
+            ? `<button onclick="switchTab('inspection')" style="background:#6366F1;border:none;color:#fff;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;">→ 검토 요청 ${myAct}건</button>`
+            : `<div style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;">✅ 처리 완료</div>`}
+        </div>`,
+      '부서장': `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:28px;">👔</div>
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:900;">부서장 검토 현황</div>
+            <div style="font-size:12px;opacity:0.65;margin-top:3px;">부서원이 검토 요청한 항목을 확인하고 승인해주세요.</div>
+          </div>
+          ${myAct > 0
+            ? `<button onclick="switchTab('inspection')" style="background:#1D4ED8;border:none;color:#fff;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;">✓ 검토 확인 ${myAct}건</button>`
+            : `<div style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;">✅ 검토 완료</div>`}
+        </div>`,
+      '팀장·책무임원': `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:28px;">🏛️</div>
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:900;">책무임원 최종 승인 현황</div>
+            <div style="font-size:12px;opacity:0.65;margin-top:3px;">부서장 검토가 완료된 항목을 최종 승인해주세요.</div>
+          </div>
+          ${myAct > 0
+            ? `<button onclick="switchTab('inspection')" style="background:#5B21B6;border:none;color:#fff;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;">✅ 최종 승인 ${myAct}건</button>`
+            : `<div style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;">✅ 승인 완료</div>`}
+        </div>`,
+      '대표이사': `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:28px;">👑</div>
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:900;">경영진 현황 요약</div>
+            <div style="font-size:12px;opacity:0.65;margin-top:3px;">${now.getFullYear()}년 ${now.getMonth()+1}월 이행점검 · 분기 보고서를 확인하세요.</div>
+          </div>
+          <button onclick="switchTab('report')" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;">📊 분기 보고서 →</button>
+        </div>`,
+    };
+    heroEl.innerHTML = heroRows[_ACTIVE_ROLE] || heroRows['부서원'];
+  }
+
+  // ── 워크플로우 파이프라인 ──
+  const steps = [
+    { label: '미입력',    count: cache.filter(i => (i.wf_step??0)===0 && i.result==='미점검').length,  color:'#9CA3AF', bg:'#F9FAFB', icon:'✏️' },
+    { label: '입력완료',  count: cache.filter(i => (i.wf_step??0)===0 && i.result!=='미점검').length,   color:'#D97706', bg:'#FFFBEB', icon:'📝' },
+    { label: '검토요청',  count: cache.filter(i => (i.wf_step??0)===1).length,                           color:'#6366F1', bg:'#EEF2FF', icon:'🔍' },
+    { label: '부서장확인',count: cache.filter(i => (i.wf_step??0)===2).length,                           color:'#1D4ED8', bg:'#EFF6FF', icon:'✔️' },
+    { label: '승인완료',  count: cache.filter(i => (i.wf_step??0)===3).length,                           color:'#059669', bg:'#ECFDF5', icon:'✅' },
+  ];
+  const pipeEl = document.getElementById('db-pipeline');
+  if (pipeEl) {
+    pipeEl.innerHTML = steps.map((s, i) => `
+      <div style="flex:1;min-width:0;">
+        <div style="background:${s.bg};border:1.5px solid ${s.color}22;border-radius:14px;padding:14px 10px;text-align:center;position:relative;">
+          <div style="font-size:18px;margin-bottom:6px;">${s.icon}</div>
+          <div style="font-size:24px;font-weight:900;color:${s.color};line-height:1;">${s.count}</div>
+          <div style="font-size:10px;font-weight:700;color:${s.color};margin-top:4px;opacity:0.8;">${s.label}</div>
+        </div>
+      </div>
+      ${i < steps.length - 1 ? `<div style="display:flex;align-items:center;padding:0 4px;color:#D1D5DB;font-size:16px;flex-shrink:0;">›</div>` : ''}`).join('');
+  }
+
+  // ── 점검 결과 분포 ──
+  const results = [
+    { label:'적정',    count: cache.filter(i=>i.result==='적정').length,    color:'#059669', bg:'#ECFDF5' },
+    { label:'개선필요', count: cache.filter(i=>i.result==='개선필요').length, color:'#DC2626', bg:'#FEF2F2' },
+    { label:'해당없음', count: cache.filter(i=>i.result==='해당없음').length, color:'#9CA3AF', bg:'#F3F4F6' },
+    { label:'미점검',  count: cache.filter(i=>i.result==='미점검').length,   color:'#D97706', bg:'#FFFBEB' },
+  ];
+  const distEl = document.getElementById('db-result-dist');
+  if (distEl) {
+    distEl.innerHTML = results.map(r => {
+      const w = total > 0 ? Math.round(r.count / total * 100) : 0;
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <span style="font-size:11px;font-weight:700;color:#374151;">${r.label}</span>
+          <span style="font-size:11px;font-weight:800;color:${r.color};">${r.count}건 (${w}%)</span>
+        </div>
+        <div style="background:#F3F4F6;border-radius:99px;height:8px;overflow:hidden;">
+          <div style="background:${r.color};height:100%;width:${w}%;border-radius:99px;transition:width 0.6s ease;"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 개선조치 현황 ──
+  const imprEl = document.getElementById('db-improvement');
+  if (imprEl) {
+    const clientId = (typeof ACTIVE_CLIENT_ID !== 'undefined' ? ACTIVE_CLIENT_ID : null) || _CLIENT_ID_FALLBACK;
+    fetch(`${API_BASE}/api/v1/improvement/actions?client_id=${clientId}`)
+      .then(r => r.ok ? r.json() : []).then(actions => {
+        if (!Array.isArray(actions)) actions = [];
+        const done    = actions.filter(a => a.status === '완료').length;
+        const ongoing = actions.filter(a => a.status === '진행중').length;
+        const pending = actions.filter(a => a.status === '미완료').length;
+        const carried = actions.filter(a => (a.carryover_count ?? 0) > 0).length;
+        imprEl.innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:#ECFDF5;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#059669;">${done}</div>
+              <div style="font-size:10px;color:#059669;font-weight:700;margin-top:2px;">완료</div>
+            </div>
+            <div style="background:#EFF6FF;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#1D4ED8;">${ongoing}</div>
+              <div style="font-size:10px;color:#1D4ED8;font-weight:700;margin-top:2px;">진행중</div>
+            </div>
+            <div style="background:#FEF2F2;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#DC2626;">${pending}</div>
+              <div style="font-size:10px;color:#DC2626;font-weight:700;margin-top:2px;">미완료</div>
+            </div>
+            <div style="background:#FFF7ED;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#D97706;">${carried}</div>
+              <div style="font-size:10px;color:#D97706;font-weight:700;margin-top:2px;">이월</div>
+            </div>
+          </div>
+          ${actions.length === 0 ? `<div style="text-align:center;color:#9CA3AF;font-size:11px;margin-top:12px;">등록된 개선조치가 없습니다</div>` : ''}`;
+      }).catch(() => {
+        imprEl.innerHTML = `<div style="text-align:center;color:#9CA3AF;font-size:11px;padding:20px 0;">데이터를 불러올 수 없습니다</div>`;
+      });
+  }
+}
+
+// ── 대시보드: client_id fallback ──
+
+// ── client_id fallback ──
+const _CLIENT_ID_FALLBACK = '2c3c2685-63ff-48a6-a0d4-58e507d1485d';
 
 // ═══════════════════════════════════════
 // TAB SWITCH
 // ═══════════════════════════════════════
 function switchTab(tab) {
-  ['monitor','prohibit','duty','rules','inspection','improvement','report'].forEach(t => {
+  ['dashboard','monitor','prohibit','duty','rules','inspection','improvement','report'].forEach(t => {
     document.getElementById(`view-${t}`)?.classList.toggle('hidden', t !== tab);
     document.getElementById(`t-${t}`)?.classList.toggle('active', t === tab);
   });
@@ -1631,6 +1951,8 @@ function switchTab(tab) {
   } else if (tab === 'report') {
     initReportQuarter();
     loadReport();
+  } else if (tab === 'dashboard') {
+    loadDashboard();
   }
 }
 

@@ -902,10 +902,18 @@ let _aiAnalysisCache = {}; // id → AI classification result
 
 // ── 역할 모드 ──────────────────────────────────────────
 const ROLES = {
+  '책무담당자': {
+    icon:'📋', color:'#065F46', bg:'#ECFDF5', borderColor:'#6EE7B7',
+    hint:'전체 이행점검 현황을 모니터링하고 미입력 부서에 독촉을 발송합니다.',
+    wf_action_at: -1,   // 승인 체인 밖 — 전체 관제 역할
+    wf_action_label: '',
+    wf_action_style: '',
+    is_admin: true,     // 준법감시부: 전체 현황 조회 + 독촉 권한
+  },
   '부서원': {
     icon:'👤', color:'#374151', bg:'#F3F4F6', borderColor:'#D1D5DB',
     hint:'내 담당 항목의 점검 결과를 입력하고 검토를 요청하세요.',
-    wf_action_at: 0,   // 이 단계에서 액션 가능
+    wf_action_at: 0,
     wf_action_label: '→ 검토 요청',
     wf_action_style: 'background:#6366F1;color:#fff;',
   },
@@ -988,6 +996,56 @@ function renderRoleContextBanner() {
   const banner = document.getElementById('insp-role-banner');
   if (!banner) return;
   const r = ROLES[_ACTIVE_ROLE];
+
+  // 책무담당자 — 전체 현황 관제 뷰
+  if (_ACTIVE_ROLE === '책무담당자') {
+    const total    = _inspCache.length;
+    const approved = _inspCache.filter(i => (i.wf_step ?? 0) === 3).length;
+    const inReview = _inspCache.filter(i => (i.wf_step ?? 0) >= 1 && (i.wf_step ?? 0) < 3).length;
+    const notInput = _inspCache.filter(i => (i.wf_step ?? 0) === 0 && i.result === '미점검').length;
+    const pct      = total > 0 ? Math.round(approved / total * 100) : 0;
+    banner.innerHTML = `<div class="role-ctx-banner" style="background:${r.bg};border:1.5px solid ${r.borderColor};color:${r.color};flex-direction:column;align-items:stretch;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">${r.icon}</span>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:13px;">책무담당자 (준법감시부) 관제 뷰</div>
+          <div style="font-size:11px;opacity:0.75;margin-top:1px;">${r.hint}</div>
+        </div>
+        ${notInput > 0
+          ? `<button onclick="sendReminder()" style="padding:6px 14px;border-radius:8px;border:none;background:#DC2626;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">⚠️ 미입력 ${notInput}건 독촉</button>`
+          : `<span style="font-size:12px;font-weight:700;color:#059669;white-space:nowrap;">✅ 전원 입력 완료</span>`}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div style="text-align:center;padding:8px;background:rgba(0,0,0,0.05);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;">${total}</div>
+          <div style="font-size:10px;opacity:0.7;margin-top:2px;">전체</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(5,150,105,0.12);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:#059669;">${approved}</div>
+          <div style="font-size:10px;color:#059669;margin-top:2px;">승인완료</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(99,102,241,0.1);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:#6366F1;">${inReview}</div>
+          <div style="font-size:10px;color:#6366F1;margin-top:2px;">검토·승인중</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(220,38,38,0.1);border-radius:8px;">
+          <div style="font-size:16px;font-weight:900;color:#DC2626;">${notInput}</div>
+          <div style="font-size:10px;color:#DC2626;margin-top:2px;">미입력</div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;opacity:0.7;margin-bottom:4px;">
+          <span>전체 승인 완료율</span><span>${pct}%</span>
+        </div>
+        <div style="background:rgba(0,0,0,0.1);border-radius:99px;height:5px;overflow:hidden;">
+          <div style="height:100%;border-radius:99px;background:${r.color};width:${pct}%;transition:width 0.5s;"></div>
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // 대표이사 — 분기 보고서로 이동
   if (_ACTIVE_ROLE === '대표이사') {
     banner.innerHTML = `<div class="role-ctx-banner" style="background:${r.bg};border:1.5px solid ${r.borderColor};color:${r.color};">
       <span style="font-size:20px;">${r.icon}</span>
@@ -996,12 +1054,14 @@ function renderRoleContextBanner() {
     </div>`;
     return;
   }
+
+  // 부서원 / 부서장 / 팀장·책무임원 — 처리 대기 건수
   const actionAt = r.wf_action_at;
-  const pending = _inspCache.filter(i => (i.wf_step ?? 0) === actionAt);
-  const total   = _inspCache.filter(i => (i.wf_step ?? 0) >= actionAt).length;
-  const done    = _inspCache.filter(i => (i.wf_step ?? 0) > actionAt).length;
-  const count   = pending.length;
-  const pct     = total > 0 ? Math.round(done / total * 100) : 0;
+  const pending  = _inspCache.filter(i => (i.wf_step ?? 0) === actionAt);
+  const total    = _inspCache.filter(i => (i.wf_step ?? 0) >= actionAt).length;
+  const done     = _inspCache.filter(i => (i.wf_step ?? 0) > actionAt).length;
+  const count    = pending.length;
+  const pct      = total > 0 ? Math.round(done / total * 100) : 0;
   banner.innerHTML = `<div class="role-ctx-banner" style="background:${r.bg};border:1.5px solid ${r.borderColor};color:${r.color};flex-direction:column;align-items:stretch;gap:8px;">
     <div style="display:flex;align-items:center;gap:10px;">
       <span style="font-size:22px;">${r.icon}</span>
@@ -1019,6 +1079,11 @@ function renderRoleContextBanner() {
       <div style="height:100%;border-radius:99px;background:${r.color};width:${pct}%;transition:width 0.5s;"></div>
     </div>
   </div>`;
+}
+
+function sendReminder() {
+  const notInput = _inspCache.filter(i => (i.wf_step ?? 0) === 0 && i.result === '미점검');
+  showToast(`📨 미입력 ${notInput.length}건 담당자에게 독촉 발송 완료`);
 }
 
 function advanceWorkflow(ruleId) {

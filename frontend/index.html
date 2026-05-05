@@ -177,9 +177,15 @@
       <button id="demo-toggle-btn" class="demo-toggle-btn" onclick="toggleDemoMode()" title="시연 모드 — 샘플 데이터로 전환">🎯 데모</button>
       <div style="font-size:11px;color:#9CA3AF;font-weight:500;white-space:nowrap;"><span id="today-date"></span></div>
       <!-- 로그인 사용자 정보 -->
-      <div id="user-info-area" style="display:none;align-items:center;gap:6px;">
+      <div id="user-info-area" style="display:none;align-items:center;gap:6px;position:relative;">
         <div style="width:1px;height:20px;background:#E5E7EB;flex-shrink:0;"></div>
-        <span id="user-display-name" style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap;"></span>
+        <!-- 빠른 사용자 전환 버튼 -->
+        <button onclick="openUserSwitcher(event)" id="user-switcher-btn"
+          style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#374151;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:4px 10px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"
+          onmouseover="this.style.background='#F3F4F6';this.style.borderColor='#D1D5DB'" onmouseout="this.style.background='#F9FAFB';this.style.borderColor='#E5E7EB'">
+          <span id="user-display-name"></span>
+          <span style="font-size:9px;opacity:0.5;">▾</span>
+        </button>
         <button onclick="doLogout()" title="로그아웃"
           style="font-size:10px;font-weight:700;color:#9CA3AF;background:none;border:1px solid #E5E7EB;border-radius:6px;padding:3px 8px;cursor:pointer;transition:all 0.15s;"
           onmouseover="this.style.color='#EF4444';this.style.borderColor='#FCA5A5'" onmouseout="this.style.color='#9CA3AF';this.style.borderColor='#E5E7EB'">
@@ -1496,6 +1502,77 @@ async function quickLogin(username) {
   document.getElementById('login-user').value = username;
   document.getElementById('login-pw').value = 'sfirm2026';
   await doLogin();
+}
+
+const _DEMO_ACCOUNTS = [
+  { username: 'admin',     display: '김준법 (준법담당)',  role: '책무담당자',    icon: '📋' },
+  { username: 'dept_head', display: '이부서 부서장',      role: '부서장',        icon: '👔' },
+  { username: 'officer',   display: '박담당 팀원',        role: '부서원',        icon: '👤' },
+  { username: 'cco',       display: '최준법 책무임원',    role: '팀장·책무임원', icon: '🏛️' },
+  { username: 'ceo',       display: '정대표 대표이사',    role: '대표이사',      icon: '👑' },
+];
+
+function openUserSwitcher(e) {
+  e?.stopPropagation();
+  const existing = document.getElementById('user-switcher-dropdown');
+  if (existing) { existing.remove(); return; }
+
+  const btn = document.getElementById('user-switcher-btn');
+  const rect = btn.getBoundingClientRect();
+  const currentName = document.getElementById('user-display-name').textContent;
+
+  const dd = document.createElement('div');
+  dd.id = 'user-switcher-dropdown';
+  dd.style.cssText = `position:fixed;top:${rect.bottom+4}px;right:${window.innerWidth-rect.right}px;
+    background:#fff;border:1.5px solid #E5E7EB;border-radius:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.14);z-index:9000;padding:6px;min-width:200px;`;
+
+  dd.innerHTML = `<div style="font-size:10px;font-weight:700;color:#9CA3AF;padding:4px 10px 6px;letter-spacing:0.04em;">사용자 전환 (데모)</div>` +
+    _DEMO_ACCOUNTS.map(a => `
+      <button onclick="switchDemoUser('${a.username}')"
+        style="display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:none;border-radius:9px;
+          background:${a.display === currentName ? '#F5F3FF' : 'transparent'};
+          cursor:pointer;text-align:left;transition:background 0.12s;"
+        onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='${a.display === currentName ? '#F5F3FF' : 'transparent'}'">
+        <span style="font-size:15px;flex-shrink:0;">${a.icon}</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#111;">${a.display}</div>
+          <div style="font-size:10px;color:#9CA3AF;font-weight:500;">${a.role}</div>
+        </div>
+        ${a.display === currentName ? '<span style="margin-left:auto;color:#8B5CF6;font-size:12px;">✓</span>' : ''}
+      </button>`).join('');
+
+  document.body.appendChild(dd);
+  setTimeout(() => document.addEventListener('click', _closeUserSwitcher), 0);
+}
+
+function _closeUserSwitcher() {
+  document.getElementById('user-switcher-dropdown')?.remove();
+  document.removeEventListener('click', _closeUserSwitcher);
+}
+
+async function switchDemoUser(username) {
+  _closeUserSwitcher();
+  const token = localStorage.getItem(_AUTH_KEY);
+  // 백그라운드에서 로그아웃 후 새 계정으로 로그인
+  if (token) {
+    fetch(`${API_BASE}/api/v1/auth/logout`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token})}).catch(()=>{});
+    localStorage.removeItem(_AUTH_KEY);
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password: 'sfirm2026'}),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    localStorage.setItem(_AUTH_KEY, data.token);
+    onLoginSuccess(data.user);
+    showToast(`${ROLES[data.user.role]?.icon ?? ''} ${data.user.display_name}으로 전환`);
+  } catch {
+    showToast('사용자 전환에 실패했습니다.');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

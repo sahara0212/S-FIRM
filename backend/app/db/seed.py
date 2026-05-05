@@ -2,9 +2,23 @@
 Railway 배포 시 초기 데이터 시드.
 pre-computed 금지행위 + 업무규칙을 포함하여 탭 진입 즉시 데이터 표시.
 """
+import hashlib
 from datetime import datetime
 from app.db.database import SessionLocal
-from app.db.models import Client, AnalysisSession, DutyStructure, ProhibitedAct, DutyMapping, BusinessRule
+from app.db.models import Client, AnalysisSession, DutyStructure, ProhibitedAct, DutyMapping, BusinessRule, User
+
+
+def _hash(pw: str) -> str:
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+
+_DEMO_USERS = [
+    {"username": "admin",     "display_name": "김준법 (준법담당)",  "role": "책무담당자",    "password": "sfirm2026"},
+    {"username": "dept_head", "display_name": "이부서 부서장",      "role": "부서장",        "password": "sfirm2026"},
+    {"username": "officer",   "display_name": "박담당 팀원",        "role": "부서원",        "password": "sfirm2026"},
+    {"username": "cco",       "display_name": "최준법 책무임원",    "role": "팀장·책무임원", "password": "sfirm2026"},
+    {"username": "ceo",       "display_name": "정대표 대표이사",    "role": "대표이사",      "password": "sfirm2026"},
+]
 
 _CLIENT_ID  = '2c3c2685-63ff-48a6-a0d4-58e507d1485d'
 _SESSION_ID = '0290acaa-133d-4f32-a473-0fcecb3d4bc3'
@@ -108,6 +122,18 @@ def seed_initial_data() -> None:
                     db.add(rule)
 
             db.commit()
+
+        # 5. 데모 사용자
+        for u in _DEMO_USERS:
+            if not db.query(User).filter(User.username == u["username"]).first():
+                db.add(User(
+                    username=u["username"],
+                    password_hash=_hash(u["password"]),
+                    display_name=u["display_name"],
+                    role=u["role"],
+                    client_id=_CLIENT_ID,
+                ))
+        db.commit()
 
     finally:
         db.close()

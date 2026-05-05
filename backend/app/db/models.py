@@ -21,6 +21,21 @@ def _now() -> datetime:
     return datetime.utcnow()
 
 
+# ── 사용자 (인증) ─────────────────────────────────────────────────────────────
+class User(Base):
+    __tablename__ = "users"
+
+    id:           Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
+    username:     Mapped[str]           = mapped_column(String(50), unique=True, nullable=False)
+    password_hash:Mapped[str]           = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str]           = mapped_column(String(100), nullable=False)
+    role:         Mapped[str]           = mapped_column(String(30), nullable=False)
+    # 역할: 책무담당자 | 부서원 | 부서장 | 팀장·책무임원 | 대표이사
+    client_id:    Mapped[Optional[str]] = mapped_column(ForeignKey("clients.id"))
+    is_active:    Mapped[bool]          = mapped_column(Boolean, default=True)
+    created_at:   Mapped[datetime]      = mapped_column(DateTime, default=_now)
+
+
 # ── 고객사 ────────────────────────────────────────────────────────────────────
 class Client(Base):
     __tablename__ = "clients"

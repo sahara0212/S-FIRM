@@ -16,6 +16,7 @@ from app.api import inspection as inspection_router
 from app.api import improvement as improvement_router
 from app.api import reports as reports_router
 from app.api import templates as templates_router
+from app.api import auth as auth_router
 
 load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")), override=True)
 
@@ -30,6 +31,7 @@ init_db()
 seed_initial_data()
 
 # 라우터 등록
+app.include_router(auth_router.router)
 app.include_router(clients_router.router)
 app.include_router(documents_router.router)
 app.include_router(analysis_router.router)

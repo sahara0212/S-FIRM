@@ -508,8 +508,27 @@
     <div id="onboard-step-3" class="wizard-section hidden" style="padding:24px;text-align:center;">
       <div style="font-size:48px;margin-bottom:12px;" id="ob-complete-icon">🎉</div>
       <div style="font-size:18px;font-weight:800;margin-bottom:8px;" id="ob-complete-title">온보딩 완료!</div>
-      <div style="font-size:13px;color:#6B7280;line-height:1.7;margin-bottom:24px;" id="ob-complete-desc">새 고객사가 추가되었습니다.<br>지금 바로 컴플라이언스 운영을 시작하세요.</div>
-      <button onclick="finishOnboarding()" style="padding:12px 32px;border-radius:12px;border:none;background:#000;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">🚀 운영 대시보드로 이동</button>
+      <div style="font-size:13px;color:#6B7280;line-height:1.7;margin-bottom:16px;" id="ob-complete-desc">새 고객사가 추가되었습니다.<br>지금 바로 컴플라이언스 운영을 시작하세요.</div>
+
+      <!-- 업권 맞춤 템플릿 적용 카드 -->
+      <div id="ob-template-card" style="background:#F5F3FF;border:1.5px solid #DDD6FE;border-radius:14px;padding:16px;margin-bottom:16px;text-align:left;">
+        <div style="font-size:13px;font-weight:800;color:#5B21B6;margin-bottom:4px;">✨ 업권 맞춤 템플릿 적용</div>
+        <div id="ob-template-desc" style="font-size:11px;color:#7C3AED;line-height:1.6;margin-bottom:12px;">
+          업권별 핵심 업무규칙을 자동으로 세팅합니다.<br>이후 수정·추가가 자유롭습니다.
+        </div>
+        <div id="ob-template-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="applyIndustryTemplate()" id="ob-apply-tmpl-btn" style="flex:2;padding:9px;border-radius:10px;border:none;background:#6366F1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+            템플릿 적용하기
+          </button>
+          <button onclick="finishOnboarding()" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:700;color:#6B7280;cursor:pointer;">
+            건너뛰기
+          </button>
+        </div>
+        <div id="ob-tmpl-result" style="display:none;margin-top:10px;font-size:11px;color:#059669;font-weight:700;"></div>
+      </div>
+
+      <button onclick="finishOnboarding()" id="ob-finish-btn" style="display:none;width:100%;padding:12px;border-radius:12px;border:none;background:#000;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">🚀 운영 대시보드로 이동</button>
     </div>
   </div>
 </div>
@@ -3818,22 +3837,27 @@ function renderClientList() {
   const area = document.getElementById('client-list-area');
   if (!area) return;
   if (!_allClients.length) {
-    area.innerHTML = `<div style="color:#9CA3AF;font-size:12px;text-align:center;padding:24px;">등록된 고객사가 없습니다.</div>`;
+    area.innerHTML = `<div style="color:#9CA3AF;font-size:12px;text-align:center;padding:24px;">등록된 고객사가 없습니다.<br><span style="font-size:11px;">아래 버튼으로 새 금융회사를 추가하세요.</span></div>`;
     return;
   }
   area.innerHTML = _allClients.map(c => {
     const isActive = c.id === ACTIVE_CLIENT_ID;
+    const noteSnippet = c.note ? `<span style="font-size:10px;color:#9CA3AF;margin-left:4px;">· ${c.note.slice(0,20)}${c.note.length>20?'…':''}</span>` : '';
     return `
       <div class="client-card ${isActive ? 'active-client' : ''}" style="margin-bottom:10px;" onclick="switchClient(${JSON.stringify(c).replace(/"/g,'&quot;')})">
-        <div style="font-size:22px;">${industryIcon(c.industry)}</div>
+        <div style="font-size:24px;line-height:1;">${industryIcon(c.industry)}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:#111;">${c.name}${isActive ? ' <span style="font-size:10px;background:#000;color:#fff;padding:1px 6px;border-radius:4px;">현재</span>' : ''}</div>
-          <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+          <div style="font-size:13px;font-weight:700;color:#111;display:flex;align-items:center;gap:6px;">
+            ${c.name}
+            ${isActive ? '<span style="font-size:9px;background:#000;color:#fff;padding:1px 6px;border-radius:4px;flex-shrink:0;">현재</span>' : ''}
+          </div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span class="client-industry-badge">${c.industry || '금융회사'}</span>
             <span style="font-size:11px;color:#9CA3AF;">${c.session_count}개 세션</span>
+            ${noteSnippet}
           </div>
         </div>
-        <div style="font-size:11px;font-weight:700;color:${isActive ? '#9CA3AF' : '#6366F1'};">${isActive ? '현재 사용 중' : '전환 →'}</div>
+        <div style="font-size:11px;font-weight:700;color:${isActive ? '#9CA3AF' : '#6366F1'};flex-shrink:0;">${isActive ? '사용 중' : '전환 →'}</div>
       </div>`;
   }).join('');
 }
@@ -4010,13 +4034,68 @@ function onboardStep2Skip() {
   showOnboardComplete(false);
 }
 
-function showOnboardComplete(hasDoc) {
+async function showOnboardComplete(hasDoc) {
   goOnboardStep(3);
   document.getElementById('ob-complete-icon').textContent = hasDoc ? '🎉' : '✅';
   document.getElementById('ob-complete-title').textContent = hasDoc ? '온보딩 완료!' : '고객사 등록 완료!';
   document.getElementById('ob-complete-desc').innerHTML = hasDoc
-    ? '책무구조도가 파싱되었습니다.<br>금지행위 추출 및 업무규칙 생성을 바로 진행하세요.'
-    : '고객사가 등록되었습니다.<br>책무구조도를 나중에 업로드하거나 법령 모니터링부터 시작하세요.';
+    ? '책무구조도가 파싱되었습니다.<br>아래에서 업권 맞춤 업무규칙 템플릿을 바로 적용하세요.'
+    : '고객사가 등록되었습니다.<br>업권 맞춤 업무규칙 템플릿을 적용하거나 나중에 설정하세요.';
+  document.getElementById('ob-finish-btn').style.display = 'none';
+  document.getElementById('ob-template-card').style.display = 'block';
+  document.getElementById('ob-tmpl-result').style.display = 'none';
+  document.getElementById('ob-apply-tmpl-btn').disabled = false;
+  document.getElementById('ob-apply-tmpl-btn').textContent = '템플릿 적용하기';
+
+  // 업권 가져오기
+  const industry = document.querySelector('.industry-chip.selected')?.dataset.industry || '';
+  document.getElementById('ob-template-desc').innerHTML =
+    `<strong>${industry}</strong> 업권 핵심 업무규칙을 자동으로 세팅합니다.<br>이후 수정·추가가 자유롭습니다.`;
+
+  // 템플릿 미리보기 로드
+  const preview = document.getElementById('ob-template-preview');
+  preview.innerHTML = '';
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/templates/${encodeURIComponent(industry)}`, { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const data = await res.json();
+      preview.innerHTML = data.rules.map(r =>
+        `<span style="background:#EDE9FE;color:#5B21B6;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;">${r.rule_code}</span>`
+      ).join('');
+    }
+  } catch(e) {
+    preview.innerHTML = `<span style="font-size:11px;color:#9CA3AF;">미리보기 불가 (오프라인)</span>`;
+  }
+}
+
+async function applyIndustryTemplate() {
+  if (!_obCreatedClientId) return;
+  const industry = document.querySelector('.industry-chip.selected')?.dataset.industry || '';
+  const btn = document.getElementById('ob-apply-tmpl-btn');
+  const result = document.getElementById('ob-tmpl-result');
+  btn.disabled = true;
+  btn.textContent = '적용 중…';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/clients/${_obCreatedClientId}/apply-template`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ industry }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || '적용 실패');
+    const data = await res.json();
+    result.style.display = 'block';
+    result.textContent = `✅ ${data.rules_created}개 업무규칙 적용 완료!`;
+    document.getElementById('ob-template-card').querySelector('div[style*="gap:8px"]').style.display = 'none';
+    document.getElementById('ob-finish-btn').style.display = 'block';
+    showToast(`✅ ${industry} 템플릿 ${data.rules_created}개 업무규칙 적용 완료`);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '다시 시도';
+    result.style.display = 'block';
+    result.style.color = '#EF4444';
+    result.textContent = '오류: ' + e.message;
+  }
 }
 
 async function finishOnboarding() {

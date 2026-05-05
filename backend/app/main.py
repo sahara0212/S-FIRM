@@ -12,6 +12,10 @@ from app.db.seed import seed_initial_data
 from app.api import clients as clients_router
 from app.api import documents as documents_router
 from app.api import analysis as analysis_router
+from app.api import inspection as inspection_router
+from app.api import improvement as improvement_router
+from app.api import reports as reports_router
+from app.api import templates as templates_router
 
 load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")), override=True)
 
@@ -29,6 +33,10 @@ seed_initial_data()
 app.include_router(clients_router.router)
 app.include_router(documents_router.router)
 app.include_router(analysis_router.router)
+app.include_router(inspection_router.router)
+app.include_router(improvement_router.router)
+app.include_router(reports_router.router)
+app.include_router(templates_router.router)
 
 app.add_middleware(
     CORSMiddleware,

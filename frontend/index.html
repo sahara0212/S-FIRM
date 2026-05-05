@@ -78,6 +78,40 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.25s ease; }
     ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+    /* Phase 1: Dashboard */
+    .kpi-card { background:#fff; border-radius:14px; border:1px solid rgba(0,0,0,0.06); padding:16px; }
+    .dday-urgent { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important; color: #fff !important; border-color: transparent !important; }
+    .dday-warn   { background: linear-gradient(135deg, #92400e 0%, #b45309 100%) !important; color: #fff !important; border-color: transparent !important; }
+    .dday-ok     { background: linear-gradient(135deg, #064e3b 0%, #065f46 100%) !important; color: #fff !important; border-color: transparent !important; }
+    .mini-bar-track { background: #E5E7EB; border-radius: 99px; height: 5px; margin-top: 8px; overflow: hidden; }
+    .mini-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    .live-dot { display:inline-block;width:7px;height:7px;background:#10B981;border-radius:50%;animation:pulse 2s infinite;margin-right:4px; }
+
+    /* Demo Mode */
+    .demo-toggle-btn { padding:4px 12px;font-size:11px;font-weight:800;border-radius:8px;border:2px solid #F59E0B;background:transparent;color:#D97706;cursor:pointer;transition:all 0.2s;letter-spacing:0.02em; }
+    .demo-toggle-btn.active { background:#F59E0B;color:#fff;border-color:#F59E0B; }
+    .demo-mode-banner { background:linear-gradient(90deg,#FEF3C7,#FFF7ED);border-bottom:2px solid #F59E0B;padding:8px 24px;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#92400E; }
+    .demo-tab-banner { background:#FFF7ED;border:1.5px dashed #F59E0B;border-radius:12px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:8px;font-size:11px;color:#92400E;font-weight:600; }
+
+    /* Phase 5: 고객사 전환 UI */
+    .client-switcher-btn { display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;transition:all 0.18s;font-size:12px;font-weight:700;color:#374151;max-width:160px; }
+    .client-switcher-btn:hover { border-color:#9CA3AF;background:#F9FAFB; }
+    .client-switcher-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .client-card { border:1.5px solid #E5E7EB;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.18s;background:#fff;display:flex;align-items:center;gap:12px; }
+    .client-card:hover { border-color:#6366F1;box-shadow:0 4px 16px rgba(99,102,241,0.1); }
+    .client-card.active-client { border-color:#000;background:#F9FAFB; }
+    .client-industry-badge { font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#EEF2FF;color:#4F46E5;white-space:nowrap; }
+    .wizard-step-dot { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0; }
+    .wizard-step-dot.done { background:#000;color:#fff; }
+    .wizard-step-dot.current { background:#6366F1;color:#fff; }
+    .wizard-step-dot.pending { background:#E5E7EB;color:#9CA3AF; }
+    .wizard-section { animation:fadeIn 0.2s ease; }
+    .upload-drop-zone { border:2px dashed #D1D5DB;border-radius:14px;padding:28px 20px;text-align:center;background:#FAFAFA;cursor:pointer;transition:all 0.2s; }
+    .upload-drop-zone:hover,.upload-drop-zone.dragover { border-color:#6366F1;background:#EEF2FF; }
+    .industry-chip { padding:8px 14px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;color:#374151; }
+    .industry-chip.selected { border-color:#000;background:#000;color:#fff; }
   </style>
 </head>
 <body>
@@ -88,9 +122,16 @@
     <div style="display: flex; align-items: center; gap: 10px;">
       <h1 style="font-size: 16px; font-weight: 900; letter-spacing: -0.5px;">Compliance Control Board</h1>
       <span style="background: #007AFF; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">2.0</span>
+      <button class="client-switcher-btn" onclick="openClientManager()" title="고객사 전환">
+        <span id="client-switcher-icon">🏢</span>
+        <span class="client-switcher-name" id="client-switcher-name">KB라이프생명</span>
+        <span style="color:#9CA3AF;font-size:10px;margin-left:2px;">▾</span>
+      </button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span id="data-source-badge" style="display:none;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"></span>
+      <span id="header-dday-badge" style="display:none;font-size:11px;font-weight:800;padding:3px 10px;border-radius:8px;"></span>
+      <button id="demo-toggle-btn" class="demo-toggle-btn" onclick="toggleDemoMode()" title="시연 모드 — 샘플 데이터로 전환">🎯 데모</button>
       <div style="font-size: 12px; color: #6B7280; font-weight: 500;">기준일: <span id="today-date"></span></div>
     </div>
   </div>
@@ -99,7 +140,10 @@
       <button class="tab-btn active" onclick="switchTab('monitor')" id="t-monitor">법령 모니터링</button>
       <button class="tab-btn" onclick="switchTab('prohibit')" id="t-prohibit">금지행위 추출</button>
       <button class="tab-btn" onclick="switchTab('duty')" id="t-duty">책무 매핑</button>
-      <button class="tab-btn" onclick="switchTab('rules')" id="t-rules">업무규칙</button>
+      <button class="tab-btn" onclick="switchTab('rules')" id="t-rules">사규/규칙 반영</button>
+      <button class="tab-btn" onclick="switchTab('inspection')" id="t-inspection">이행점검</button>
+      <button class="tab-btn" onclick="switchTab('improvement')" id="t-improvement">개선조치</button>
+      <button class="tab-btn" onclick="switchTab('report')" id="t-report">분기 보고서</button>
     </div>
     <!-- 기간 필터 (모니터링 탭일 때만 표시) -->
     <div id="header-period-filter" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -214,6 +258,8 @@
     <div id="rules-banner" style="display:none;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px;">
       <span id="rules-banner-msg" style="font-size:12px;font-weight:600;"></span>
     </div>
+    <!-- Phase 1: 점검 현황 대시보드 -->
+    <div id="rules-dashboard" style="margin-bottom:24px;"></div>
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 24px;">
       <button onclick="exportData('json')" style="background:#F3F4F6; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-code" style="margin-right:5px"></i>JSON</button>
       <button onclick="exportData('excel')" style="background:#F3F4F6; border:none; border-radius:10px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer;"><i class="fas fa-table" style="margin-right:5px"></i>Excel</button>
@@ -232,7 +278,241 @@
     </div>
   </div>
 
+  <!-- TAB 6: 개선조치 -->
+  <div id="view-improvement" class="fade-in hidden">
+
+    <!-- 데모 모드 배너 -->
+    <div id="impr-demo-banner" class="demo-tab-banner" style="display:none;">
+      🎯 <strong>데모 모드 활성</strong> · 시연용 샘플 데이터입니다. 저장/등록 동작은 실제 DB에 반영되지 않습니다.
+    </div>
+
+    <!-- 헤더 컨트롤 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-label" style="margin:0;">점검 기간</span>
+        <select id="impr-period-select" onchange="loadImprovement()"
+          style="padding:6px 28px 6px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:700;color:#1F2937;background:#fff;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22none%22 stroke=%22%236B7280%22 stroke-width=%221.5%22 d=%22M4 6l4 4 4-4%22/></svg>');background-repeat:no-repeat;background-position:right 8px center;background-size:16px;">
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="openImprModal()" style="padding:7px 14px;background:#000;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">+ 개선조치 등록</button>
+        <button onclick="autoCreateFromInspection()" style="padding:7px 14px;background:#EFF6FF;color:#1D4ED8;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">개선필요 자동 연계</button>
+      </div>
+    </div>
+
+    <!-- 현황 요약 카드 (4종) -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;" id="impr-summary-grid"></div>
+
+    <!-- 이월 현황 배너 -->
+    <div id="impr-carryover-banner" style="display:none;margin-bottom:16px;"></div>
+
+    <!-- 필터 탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:16px;" id="impr-filter-row">
+      <button onclick="filterImprovement('all')"   id="imf-all"   class="period-btn active" style="font-size:11px;">전체</button>
+      <button onclick="filterImprovement('미완료')" id="imf-미완료" class="period-btn" style="font-size:11px;color:#EF4444;">미완료</button>
+      <button onclick="filterImprovement('진행중')" id="imf-진행중" class="period-btn" style="font-size:11px;color:#D97706;">진행중</button>
+      <button onclick="filterImprovement('완료')"  id="imf-완료"  class="period-btn" style="font-size:11px;color:#059669;">완료</button>
+      <button onclick="filterImprovement('이월')"  id="imf-이월"  class="period-btn" style="font-size:11px;color:#7C3AED;">이월 포함</button>
+    </div>
+
+    <!-- 조치 목록 -->
+    <div style="display:flex;flex-direction:column;gap:10px;" id="impr-list"></div>
+
+  </div>
+
+  <!-- TAB 5: 이행점검 -->
+  <div id="view-inspection" class="fade-in hidden">
+
+    <!-- 데모 모드 배너 -->
+    <div id="insp-demo-banner" class="demo-tab-banner" style="display:none;">
+      🎯 <strong>데모 모드 활성</strong> · 시연용 샘플 데이터입니다. 결과/방식 변경은 화면에만 반영되며 실제 DB에 저장되지 않습니다.
+    </div>
+
+    <!-- 기간 선택 + 현황 요약 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-label" style="margin:0;">점검 기간</span>
+        <select id="insp-period-select" onchange="loadInspection()"
+          style="padding:6px 28px 6px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:700;color:#1F2937;background:#fff;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22none%22 stroke=%22%236B7280%22 stroke-width=%221.5%22 d=%22M4 6l4 4 4-4%22/></svg>');background-repeat:no-repeat;background-position:right 8px center;background-size:16px;">
+        </select>
+      </div>
+      <div style="font-size:11px;color:#9CA3AF;" id="insp-save-status"></div>
+    </div>
+
+    <!-- KPI 요약 카드 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;" id="insp-summary-grid"></div>
+
+    <!-- 완료율 프로그레스 바 -->
+    <div style="margin-bottom:20px;" id="insp-progress-wrap"></div>
+
+    <!-- 점검 목록 -->
+    <div class="card" style="overflow:hidden;" id="insp-list-card">
+      <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12px;font-weight:700;color:#374151;">업무규칙별 이행점검</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="filterInspection('all')" id="if-all" class="period-btn active" style="font-size:11px;">전체</button>
+          <button onclick="filterInspection('미점검')" id="if-미점검" class="period-btn" style="font-size:11px;">미점검만</button>
+          <button onclick="filterInspection('개선필요')" id="if-개선필요" class="period-btn" style="font-size:11px;color:#D97706;">개선필요</button>
+        </div>
+      </div>
+      <div id="insp-list-body"></div>
+    </div>
+
+  </div>
+
+  <!-- TAB 7: 분기 보고서 -->
+  <div id="view-report" class="fade-in hidden">
+
+    <!-- 데모 모드 배너 -->
+    <div id="report-demo-banner" class="demo-tab-banner" style="display:none;">
+      🎯 <strong>데모 모드 활성</strong> · 시연용 샘플 보고서 데이터입니다. 상태 변경은 화면에만 반영됩니다.
+    </div>
+
+    <!-- 분기 선택 + 액션 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-label" style="margin:0;">분기</span>
+        <select id="report-quarter-select" onchange="loadReport()"
+          style="padding:6px 28px 6px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:700;color:#1F2937;background:#fff;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22none%22 stroke=%22%236B7280%22 stroke-width=%221.5%22 d=%22M4 6l4 4 4-4%22/></svg>');background-repeat:no-repeat;background-position:right 8px center;background-size:16px;">
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveReport()" style="padding:7px 16px;background:#F3F4F6;color:#374151;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">💾 집계 저장</button>
+        <button onclick="advanceReportStatus()" id="report-advance-btn" style="padding:7px 16px;background:#000;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">→ 다음 단계</button>
+      </div>
+    </div>
+
+    <!-- 상태 스텝퍼 -->
+    <div id="report-stepper" style="margin-bottom:24px;"></div>
+
+    <!-- 집계 요약 카드 (이행점검 + 개선조치) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;" id="report-summary-grid"></div>
+
+    <!-- 결재 이력 + 메모 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div class="card" style="padding:20px;" id="report-history-card">
+        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;">결재 이력</div>
+        <div id="report-history-body" style="font-size:13px;color:#6B7280;">불러오는 중...</div>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em;">보고서 메모</div>
+        <textarea id="report-note-ta" rows="5" onblur="saveReportNote()"
+          placeholder="특이사항, 경영진 전달 내용 등 자유 기록..."
+          style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:13px;color:#374151;resize:vertical;outline:none;box-sizing:border-box;line-height:1.6;"></textarea>
+        <div id="report-note-saved" style="font-size:10px;color:#9CA3AF;margin-top:4px;height:14px;"></div>
+      </div>
+    </div>
+
+    <!-- 월별 상세 (이행점검 월별 진행률) -->
+    <div class="card" style="padding:20px;" id="report-monthly-card">
+      <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.06em;">월별 이행점검 현황</div>
+      <div id="report-monthly-body"></div>
+    </div>
+
+  </div>
+
 </main>
+
+<!-- CLIENT MANAGER MODAL -->
+<div id="client-mgr-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeClientManager()">
+  <div class="modal-box" style="max-width:520px;">
+    <div style="padding:24px 24px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:800;">🏢 고객사 관리</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:3px;">전환하거나 새 금융회사를 추가하세요</div>
+      </div>
+      <button onclick="closeClientManager()" style="border:none;background:none;font-size:18px;color:#9CA3AF;cursor:pointer;padding:4px;">✕</button>
+    </div>
+    <div style="padding:16px 20px;max-height:420px;overflow-y:auto;" id="client-list-area">
+      <div style="color:#9CA3AF;font-size:12px;text-align:center;padding:20px;">불러오는 중…</div>
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid #F3F4F6;">
+      <button onclick="openOnboarding()" style="width:100%;padding:12px;border-radius:12px;border:2px dashed #D1D5DB;background:#FAFAFA;font-size:13px;font-weight:700;color:#6B7280;cursor:pointer;transition:all 0.18s;" onmouseover="this.style.borderColor='#6366F1';this.style.color='#4F46E5';" onmouseout="this.style.borderColor='#D1D5DB';this.style.color='#6B7280';">
+        + 새 고객사 추가
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING WIZARD MODAL -->
+<div id="onboard-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeOnboarding()">
+  <div class="modal-box" style="max-width:480px;">
+    <div style="padding:24px 24px 16px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;">✨ 새 고객사 온보딩</div>
+      <button onclick="closeOnboarding()" style="border:none;background:none;font-size:18px;color:#9CA3AF;cursor:pointer;padding:4px;">✕</button>
+    </div>
+
+    <!-- 스텝 인디케이터 -->
+    <div style="padding:16px 24px 0;display:flex;align-items:center;gap:6px;" id="onboard-stepper">
+      <div class="wizard-step-dot current" id="ostep-dot-1">1</div>
+      <div style="flex:1;height:2px;background:#E5E7EB;" id="ostep-line-1"></div>
+      <div class="wizard-step-dot pending" id="ostep-dot-2">2</div>
+      <div style="flex:1;height:2px;background:#E5E7EB;" id="ostep-line-2"></div>
+      <div class="wizard-step-dot pending" id="ostep-dot-3">3</div>
+    </div>
+    <div style="padding:4px 24px 12px;display:flex;gap:0;">
+      <div style="flex:1;font-size:10px;font-weight:700;color:#6366F1;" id="ostep-lbl-1">기본 정보</div>
+      <div style="flex:1;text-align:center;font-size:10px;font-weight:700;color:#9CA3AF;" id="ostep-lbl-2">책무구조도</div>
+      <div style="flex:1;text-align:right;font-size:10px;font-weight:700;color:#9CA3AF;" id="ostep-lbl-3">완료</div>
+    </div>
+
+    <!-- Step 1: 기본정보 -->
+    <div id="onboard-step-1" class="wizard-section" style="padding:16px 24px 24px;">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">금융회사명 <span style="color:#EF4444;">*</span></label>
+        <input id="ob-name" type="text" placeholder="예: 한화손해보험" style="width:100%;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:600;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='#6366F1'" onblur="this.style.borderColor='#E5E7EB'">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:8px;">업권 선택 <span style="color:#EF4444;">*</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="industry-chips">
+          <button class="industry-chip selected" data-industry="보험(생보)" onclick="selectIndustry(this)">🏥 보험(생보)</button>
+          <button class="industry-chip" data-industry="보험(손보)" onclick="selectIndustry(this)">🛡️ 보험(손보)</button>
+          <button class="industry-chip" data-industry="은행" onclick="selectIndustry(this)">🏦 은행</button>
+          <button class="industry-chip" data-industry="증권" onclick="selectIndustry(this)">📈 증권</button>
+          <button class="industry-chip" data-industry="카드" onclick="selectIndustry(this)">💳 카드</button>
+          <button class="industry-chip" data-industry="자산운용" onclick="selectIndustry(this)">💼 자산운용</button>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">메모 (선택)</label>
+        <textarea id="ob-note" placeholder="담당자, 계약일, 특이사항 등" rows="2" style="width:100%;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:12px;resize:none;outline:none;" onfocus="this.style.borderColor='#6366F1'" onblur="this.style.borderColor='#E5E7EB'"></textarea>
+      </div>
+      <button onclick="onboardStep1Next()" style="width:100%;padding:12px;border-radius:12px;border:none;background:#000;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">다음 →</button>
+    </div>
+
+    <!-- Step 2: 책무구조도 업로드 -->
+    <div id="onboard-step-2" class="wizard-section hidden" style="padding:16px 24px 24px;">
+      <div style="background:#EEF2FF;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:11px;color:#4338CA;line-height:1.6;">
+        <strong>책무구조도 문서를 업로드하면</strong> AI가 임원-책무 구조를 자동 파싱하여 금지행위 추출 및 업무규칙 생성에 활용합니다.<br>
+        <span style="color:#6366F1;">· .docx · .pdf · .pptx · .xlsx 지원, 최대 10MB</span>
+      </div>
+      <div class="upload-drop-zone" id="ob-drop-zone" onclick="document.getElementById('ob-file-input').click()">
+        <div style="font-size:28px;margin-bottom:8px;">📄</div>
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:4px;">파일을 드래그하거나 클릭하여 선택</div>
+        <div id="ob-file-name" style="font-size:11px;color:#9CA3AF;">선택된 파일 없음</div>
+      </div>
+      <input type="file" id="ob-file-input" style="display:none;" accept=".docx,.pdf,.pptx,.xlsx,.xls,.txt" onchange="handleObFileSelect(this)">
+      <div id="ob-upload-progress" style="display:none;margin-top:12px;">
+        <div style="font-size:11px;font-weight:700;color:#6366F1;margin-bottom:6px;" id="ob-upload-msg">업로드 중…</div>
+        <div style="background:#E5E7EB;border-radius:99px;height:4px;overflow:hidden;">
+          <div id="ob-upload-bar" style="height:100%;background:#6366F1;border-radius:99px;width:0%;transition:width 0.3s;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="onboardStep2Skip()" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:700;color:#6B7280;cursor:pointer;">건너뛰기</button>
+        <button onclick="onboardStep2Upload()" id="ob-upload-btn" style="flex:2;padding:11px;border-radius:12px;border:none;background:#6366F1;color:#fff;font-size:13px;font-weight:700;cursor:pointer;" disabled>업로드 및 파싱 →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: 완료 -->
+    <div id="onboard-step-3" class="wizard-section hidden" style="padding:24px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;" id="ob-complete-icon">🎉</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:8px;" id="ob-complete-title">온보딩 완료!</div>
+      <div style="font-size:13px;color:#6B7280;line-height:1.7;margin-bottom:24px;" id="ob-complete-desc">새 고객사가 추가되었습니다.<br>지금 바로 컴플라이언스 운영을 시작하세요.</div>
+      <button onclick="finishOnboarding()" style="padding:12px 32px;border-radius:12px;border:none;background:#000;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">🚀 운영 대시보드로 이동</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL -->
 <div id="modal" class="modal-overlay hidden" onclick="closeModalOutside(event)">
@@ -536,14 +816,112 @@ function allRecentChanges() {
 const LAW_CHANGE_MAPPINGS = {};
 
 // ── 실데이터 연결 설정 ──────────────────────────────
-const ACTIVE_CLIENT_ID  = '2c3c2685-63ff-48a6-a0d4-58e507d1485d';
-const ACTIVE_SESSION_ID = '0290acaa-133d-4f32-a473-0fcecb3d4bc3';
+let ACTIVE_CLIENT_ID  = '2c3c2685-63ff-48a6-a0d4-58e507d1485d';
+let ACTIVE_SESSION_ID = '0290acaa-133d-4f32-a473-0fcecb3d4bc3';
+let _activeClientInfo = { id: ACTIVE_CLIENT_ID, name: 'KB라이프생명', industry: '보험(생보)' };
+let _allClients = [];  // 전체 고객사 목록 캐시
+let _obCreatedClientId = null;  // 온보딩으로 생성된 고객사 ID
+let _obCreatedDocId = null;     // 업로드된 문서 ID
 let _prohibCache  = [];
 let _rulesCache   = [];
 let _prohibLoaded = false;
 let _rulesLoaded  = false;
 let _ruleActions  = {};   // id → {status:'승인'|'검토'|'협의필요'|'보류', ts}
 let _aiAnalysisCache = {}; // id → AI classification result
+
+// ── 데모 모드 ──────────────────────────────────────────
+let _DEMO_MODE = false;
+
+const DEMO_INSPECTION_ITEMS = [
+  { rule_id:'r-demo-001', rule_code:'RULE-PIP-001', name:'자기계열사 투자 한도 준수',          law_name:'자본시장법',       article:'제81조',    priority:'HIGH',   first_duty:'CPO',  result:'적정',    method:'대면',    note:'분기별 포트폴리오 검토 완료', check_id:'chk-d-001' },
+  { rule_id:'r-demo-002', rule_code:'RULE-PIP-002', name:'내부자 거래 사전 신고',              law_name:'자본시장법',       article:'제172조',   priority:'HIGH',   first_duty:'CCO',  result:'적정',    method:'비대면',  note:'전산 시스템 자동 점검', check_id:'chk-d-002' },
+  { rule_id:'r-demo-003', rule_code:'RULE-PIP-003', name:'고객정보 보호 및 암호화 기준 준수', law_name:'개인정보보호법',   article:'제29조',    priority:'HIGH',   first_duty:'CISO', result:'개선필요', method:'대면',    note:'일부 레거시 시스템 암호화 미적용 확인', check_id:'chk-d-003' },
+  { rule_id:'r-demo-004', rule_code:'RULE-PIP-004', name:'이해충돌 사전 공시 의무',            law_name:'금융소비자보호법', article:'제18조',    priority:'MEDIUM', first_duty:'CPO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-004' },
+  { rule_id:'r-demo-005', rule_code:'RULE-PIP-005', name:'약관 변경 시 사전 고지 절차',        law_name:'금융소비자보호법', article:'제19조',    priority:'MEDIUM', first_duty:'CCO',  result:'적정',    method:'비대면',  note:'고지 발송 시스템 정상 작동', check_id:'chk-d-005' },
+  { rule_id:'r-demo-006', rule_code:'RULE-PIP-006', name:'임직원 금융투자상품 보유·매매 신고', law_name:'자본시장법',       article:'제63조',    priority:'HIGH',   first_duty:'CPO',  result:'개선필요', method:'대면',    note:'신고 기한 초과자 3명 확인, 시정 요구', check_id:'chk-d-006' },
+  { rule_id:'r-demo-007', rule_code:'RULE-PIP-007', name:'대출 실행 전 적합성 원칙 준수',      law_name:'은행법',           article:'제52조의2', priority:'MEDIUM', first_duty:'CRO',  result:'적정',    method:'대면',    note:'', check_id:'chk-d-007' },
+  { rule_id:'r-demo-008', rule_code:'RULE-PIP-008', name:'파생상품 위험관리 한도 모니터링',   law_name:'자본시장법',       article:'제166조',   priority:'LOW',    first_duty:'CRO',  result:'해당없음', method:'해당없음', note:'해당 상품 미취급', check_id:'chk-d-008' },
+  { rule_id:'r-demo-009', rule_code:'RULE-PIP-009', name:'내부통제기준 교육 이수 의무',        law_name:'금융회사지배구조법',article:'제24조',   priority:'LOW',    first_duty:'CCO',  result:'해당없음', method:'해당없음', note:'당월 교육 일정 없음', check_id:'chk-d-009' },
+  { rule_id:'r-demo-010', rule_code:'RULE-PIP-010', name:'자금세탁방지 고객 확인 절차 이행',  law_name:'특정금융거래법',   article:'제5조의2',  priority:'HIGH',   first_duty:'CCO',  result:'미점검',   method:'대면',    note:'', check_id:null },
+];
+
+const DEMO_IMPROVEMENT_ITEMS = [
+  {
+    id:'impr-demo-001', client_id:ACTIVE_CLIENT_ID, check_id:'chk-demo-003', rule_id:'r-demo-003',
+    origin_period:'2026-05',
+    title:'[2026-05] 레거시 시스템 암호화 조치 — 개선필요 조치',
+    cause:'일부 레거시 시스템에서 고객정보 암호화 미적용 구간 발견',
+    action_plan:'대상 시스템 목록 작성 → 보안 패치 적용 → 재점검',
+    action_result:'', action_type:'이행점검조치', status:'진행중', due_date:'2026-05-31',
+    carryover_count:0, last_period:null,
+    created_at:'2026-05-02T10:00:00', updated_at:'2026-05-04T14:30:00',
+    rule_code:'RULE-PIP-003', rule_name:'고객정보 보호 및 암호화 기준 준수', law_name:'개인정보보호법 제29조',
+  },
+  {
+    id:'impr-demo-002', client_id:ACTIVE_CLIENT_ID, check_id:'chk-demo-006', rule_id:'r-demo-006',
+    origin_period:'2026-05',
+    title:'[2026-05] 임직원 금융투자상품 신고 지연 — 시정 조치',
+    cause:'신고 기한 초과자 3명 발생 (신고 시스템 안내 부족)',
+    action_plan:'전 직원 신고 의무 재공지 + 시스템 알림 기능 강화',
+    action_result:'', action_type:'이행점검조치', status:'미완료', due_date:'2026-05-20',
+    carryover_count:0, last_period:null,
+    created_at:'2026-05-02T10:00:00', updated_at:'2026-05-02T10:00:00',
+    rule_code:'RULE-PIP-006', rule_name:'임직원 금융투자상품 보유·매매 신고', law_name:'자본시장법 제63조',
+  },
+  {
+    id:'impr-demo-003', client_id:ACTIVE_CLIENT_ID, check_id:null, rule_id:'r-demo-010',
+    origin_period:'2026-03',
+    title:'[2026-03] AML 고객확인 절차 고도화 자율 개선',
+    cause:'고위험 고객 재확인 주기 단축 필요성 대두',
+    action_plan:'고위험군 고객 재확인 주기 6개월 → 3개월으로 단축, 시스템 반영',
+    action_result:'', action_type:'자율개선조치', status:'미완료', due_date:'2026-04-30',
+    carryover_count:2, last_period:'2026-05',
+    created_at:'2026-03-10T09:00:00', updated_at:'2026-05-01T09:00:00',
+    rule_code:'RULE-PIP-010', rule_name:'자금세탁방지 고객 확인 절차 이행', law_name:'특정금융거래법 제5조의2',
+  },
+  {
+    id:'impr-demo-004', client_id:ACTIVE_CLIENT_ID, check_id:null, rule_id:'r-demo-002',
+    origin_period:'2026-03',
+    title:'[2026-03] 내부자 거래 모니터링 시스템 고도화',
+    cause:'실시간 모니터링 로그 보관 기간 미준수 확인',
+    action_plan:'로그 보관 기간 3년 기준 적용 + 자동 삭제 방지 설정',
+    action_result:'로그 보관 정책 개정 완료, IT팀 반영 확인 (2026-03-28)',
+    action_type:'자율개선조치', status:'완료', due_date:'2026-03-31',
+    carryover_count:0, last_period:null,
+    created_at:'2026-03-05T11:00:00', updated_at:'2026-03-28T16:00:00',
+    rule_code:'RULE-PIP-002', rule_name:'내부자 거래 사전 신고', law_name:'자본시장법 제172조',
+  },
+];
+
+function toggleDemoMode() {
+  _DEMO_MODE = !_DEMO_MODE;
+  const btn = document.getElementById('demo-toggle-btn');
+  btn?.classList.toggle('active', _DEMO_MODE);
+
+  // 전역 배너 (main 위)
+  let gb = document.getElementById('demo-global-banner');
+  if (!gb) {
+    gb = document.createElement('div');
+    gb.id = 'demo-global-banner';
+    gb.className = 'demo-mode-banner';
+    gb.innerHTML = '🎯 <strong>데모 모드 활성</strong> &nbsp;·&nbsp; 시연용 샘플 데이터로 전환되었습니다. 모든 저장 동작은 실제 DB에 반영되지 않습니다.'
+      + '<span style="margin-left:auto;cursor:pointer;font-size:13px;opacity:0.7;" onclick="toggleDemoMode()">✕ 해제</span>';
+    document.querySelector('main').before(gb);
+  }
+  gb.style.display = _DEMO_MODE ? 'flex' : 'none';
+
+  // 탭 내 배너
+  ['insp-demo-banner','impr-demo-banner','report-demo-banner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = _DEMO_MODE ? 'flex' : 'none';
+  });
+
+  // 현재 활성 탭 재렌더
+  const active = document.querySelector('.tab-btn.active')?.id?.replace('t-','');
+  if (active === 'inspection') loadInspection();
+  else if (active === 'improvement') loadImprovement();
+  else if (active === 'report') loadReport();
+}
 
 // 1차 책임자 선택 시 자동 체인
 const EXEC_CHAIN = {
@@ -689,6 +1067,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('today-date').textContent =
     `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
 
+  // 고객사 목록 백그라운드 로드 + 헤더 업데이트
+  loadClients().then(() => updateClientHeader());
+
   // 법령 모니터링 탭: 법제처 API 로딩 후 렌더
   await loadFromAPI();
   renderMonitor();
@@ -699,12 +1080,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 // TAB SWITCH
 // ═══════════════════════════════════════
 function switchTab(tab) {
-  ['monitor','prohibit','duty','rules'].forEach(t => {
-    document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
-    document.getElementById(`t-${t}`).classList.toggle('active', t === tab);
+  ['monitor','prohibit','duty','rules','inspection','improvement','report'].forEach(t => {
+    document.getElementById(`view-${t}`)?.classList.toggle('hidden', t !== tab);
+    document.getElementById(`t-${t}`)?.classList.toggle('active', t === tab);
   });
   const pf = document.getElementById('header-period-filter');
   if (pf) pf.style.display = tab === 'monitor' ? 'flex' : 'none';
+
+  // 헤더 D-Day 배지: 업무규칙/이행점검/개선조치 탭에서 표시
+  const ddBadge = document.getElementById('header-dday-badge');
+  if (ddBadge) ddBadge.style.display = ['rules','inspection','improvement'].includes(tab) ? '' : 'none';
 
   if (tab === 'prohibit') {
     loadProhibitions(true).then(() => {
@@ -718,6 +1103,15 @@ function switchTab(tab) {
       renderRules();
       if (_rulesCache.length === 0) autoGenerateRules();
     });
+  } else if (tab === 'inspection') {
+    initInspectionPeriod();
+    loadInspection();
+  } else if (tab === 'improvement') {
+    initImprPeriod();
+    loadImprovement();
+  } else if (tab === 'report') {
+    initReportQuarter();
+    loadReport();
   }
 }
 
@@ -796,6 +1190,22 @@ function renderMonitor() {
 
 async function showLawDetail(lawId) {
   const law = LAW_CHANGES[lawId];
+
+  // 데모 모드: 샘플 설명으로 대체
+  if (_DEMO_MODE) {
+    showModal(mHeader(`${law?.emoji || '📋'} ${law?.name || lawId}`) + `
+      <div style="padding:28px 20px;">
+        <div class="demo-tab-banner" style="margin-bottom:20px;">🎯 <strong>데모 모드</strong> · 법제처 실시간 조회 없이 샘플 설명을 표시합니다.</div>
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">주요 변경 개요 (시연용)</div>
+        <div style="background:#F9FAFB;border-radius:12px;padding:16px;font-size:13px;line-height:1.8;color:#374151;">
+          <b>제1조 (목적)</b> — 개정: 디지털 금융 환경 변화를 반영하여 적용 범위 및 정의 조항 보완<br>
+          <b>제5조 (금지행위)</b> — 신설: 고객정보 무단 제3자 제공 행위 명시적 금지 조항 추가<br>
+          <b>제12조 (과태료)</b> — 개정: 위반 행위 유형별 과태료 상한액 상향 조정
+        </div>
+        <div style="margin-top:16px;font-size:11px;color:#9CA3AF;">※ 실제 서비스에서는 법제처 OpenAPI를 통해 현행 조문 비교 데이터가 표시됩니다.</div>
+      </div>`);
+    return;
+  }
 
   // 캐시가 있으면 즉시 표시 (깜빡임 없음)
   if (window._diffCache?.[lawId]) {
@@ -1156,6 +1566,23 @@ async function showRelatedLaw(id) {
   const l = RELATED_LAWS.find(x => x.id === id);
   const names = { esla:'전자서명법', cmal:'자본시장법', spfl:'특정금융정보법', insa:'보험업법' };
   const name = names[id] || id;
+
+  // 데모 모드: 샘플 설명으로 대체
+  if (_DEMO_MODE) {
+    showModal(mHeader(name) + `
+      <div style="padding:28px 20px;">
+        <div class="demo-tab-banner" style="margin-bottom:20px;">🎯 <strong>데모 모드</strong> · 법제처 실시간 조회 없이 샘플 내용을 표시합니다.</div>
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">유관 법령 변경 개요 (시연용)</div>
+        <div style="background:#F9FAFB;border-radius:12px;padding:16px;font-size:13px;line-height:1.8;color:#374151;">
+          ${l?.changes ? `<b>${periodLabel()} 내 변경 건수: ${l.changes}건</b><br><br>` : ''}
+          · 디지털 금융 환경 반영을 위한 정의 조항 개정<br>
+          · 금융회사 준수 의무 및 내부통제 기준 강화<br>
+          · 위반 시 과태료 상한 상향 조정
+        </div>
+        <div style="margin-top:16px;font-size:11px;color:#9CA3AF;">※ 실제 서비스에서는 법제처 OpenAPI를 통해 현행 조문 비교 데이터가 표시됩니다.</div>
+      </div>`);
+    return;
+  }
 
   showModal(mHeader(name) + `
     <div style="padding:32px 20px;text-align:center;" id="related-loading-${id}">
@@ -1877,6 +2304,101 @@ function assignDuty(id, role) {
 }
 
 // ═══════════════════════════════════════
+// PHASE 1: DASHBOARD HELPERS
+// ═══════════════════════════════════════
+function calcDDay() {
+  const now = new Date();
+  // 이행점검 마감: 매월 말일 (기본 규칙)
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const diff = Math.ceil((lastDay - now) / 86400000);
+  return { days: diff, deadline: lastDay };
+}
+
+function calcPendingApproval() {
+  return Object.values(_ruleActions).filter(a => a.status === '검토').length;
+}
+
+function calcCompletionRate() {
+  if (!_rulesCache.length) return { approved: 0, total: 0, pct: 0 };
+  const approved = Object.values(_ruleActions).filter(a => a.status === '승인').length;
+  const pct = Math.round((approved / _rulesCache.length) * 100);
+  return { approved, total: _rulesCache.length, pct };
+}
+
+function renderRulesDashboard() {
+  const el = document.getElementById('rules-dashboard');
+  if (!el) return;
+
+  const { days, deadline } = calcDDay();
+  const pending = calcPendingApproval();
+  const { approved, total, pct } = calcCompletionRate();
+
+  const deadlineStr = `${deadline.getFullYear()}.${String(deadline.getMonth()+1).padStart(2,'0')}.${String(deadline.getDate()).padStart(2,'0')}`;
+
+  // D-Day 카드 스타일
+  const ddayClass = days <= 5 ? 'dday-urgent' : days <= 10 ? 'dday-warn' : 'dday-ok';
+  const ddayLabel = days <= 0 ? '마감' : `D-${days}`;
+
+  // 헤더 배지 동기화
+  const headerBadge = document.getElementById('header-dday-badge');
+  if (headerBadge) {
+    const hBg = days <= 5 ? '#DC2626' : days <= 10 ? '#D97706' : '#059669';
+    headerBadge.style.background = hBg;
+    headerBadge.style.color = '#fff';
+    headerBadge.textContent = `이행점검 ${ddayLabel}`;
+    headerBadge.style.display = '';
+  }
+
+  // 완료율 SVG ring
+  const r = 20, cx = 28, cy = 28, circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  const ringColor = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+
+      <!-- D-Day -->
+      <div class="kpi-card ${ddayClass}" style="display:flex;flex-direction:column;justify-content:space-between;min-height:96px;">
+        <div style="font-size:10px;font-weight:700;opacity:0.75;text-transform:uppercase;letter-spacing:0.08em;">이행점검 마감</div>
+        <div>
+          <div style="font-size:36px;font-weight:900;line-height:1;letter-spacing:-1px;">${ddayLabel}</div>
+          <div style="font-size:10px;opacity:0.7;margin-top:4px;">${deadlineStr}까지</div>
+        </div>
+      </div>
+
+      <!-- 결재대기 -->
+      <div class="kpi-card" style="display:flex;flex-direction:column;justify-content:space-between;min-height:96px;">
+        <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;">결재 대기</div>
+        <div>
+          <div style="font-size:36px;font-weight:900;line-height:1;color:${pending > 0 ? '#D97706' : '#D1D5DB'};">${pending}</div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:4px;">검토 중인 규칙</div>
+        </div>
+        ${pending > 0 ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px;">
+          <span class="live-dot"></span>
+          <span style="font-size:10px;color:#D97706;font-weight:700;">승인 필요</span>
+        </div>` : `<div style="font-size:10px;color:#10B981;font-weight:700;margin-top:6px;">✓ 대기 없음</div>`}
+      </div>
+
+      <!-- 반영완료율 -->
+      <div class="kpi-card" style="display:flex;align-items:center;gap:14px;min-height:96px;">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#F3F4F6" stroke-width="6"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ringColor}" stroke-width="6"
+            stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${circ/4}"
+            stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
+          <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="10" font-weight="800" fill="${ringColor}">${pct}%</text>
+        </svg>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;">반영완료율</div>
+          <div style="font-size:22px;font-weight:900;color:${ringColor};line-height:1.2;margin-top:4px;">${approved}<span style="font-size:13px;color:#9CA3AF;font-weight:600;">/${total}</span></div>
+          <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">승인된 업무규칙</div>
+        </div>
+      </div>
+
+    </div>`;
+}
+
+// ═══════════════════════════════════════
 // TAB 4: 업무규칙
 // ═══════════════════════════════════════
 function ruleStatusLabel(s) {
@@ -1911,6 +2433,9 @@ function classifyBg(type) {
 }
 
 function renderRules() {
+  // 데이터 유무와 관계없이 대시보드(D-Day 등)는 항상 렌더
+  renderRulesDashboard();
+
   if (_rulesCache.length === 0) {
     ['rules-stats-grid','rules-cards','rules-tbody'].forEach(id => {
       const el = document.getElementById(id);
@@ -1926,19 +2451,34 @@ function renderRules() {
   const regulation   = _rulesCache.filter(r => classifyRule(r) === 'regulation').length;
   const manual       = _rulesCache.filter(r => classifyRule(r) === 'manual').length;
 
+  // 분류별 승인 완료 수 계산 (진행률 바용)
+  const approvedByType = (type) => {
+    const subset = type === 'all' ? _rulesCache : _rulesCache.filter(r => classifyRule(r) === type);
+    return subset.filter(r => _ruleActions[r.id]?.status === '승인').length;
+  };
+
   const stats = [
-    { label:'총 법령 변경',   value:totalChanges, type:'all',       color:'#3B82F6', icon:'📋' },
-    { label:'사규 필수반영',  value:mandatory,    type:'mandatory', color:'#DC2626', icon:'🔴' },
-    { label:'규정/규칙 반영', value:regulation,   type:'regulation',color:'#7C3AED', icon:'🟣' },
-    { label:'매뉴얼/가이드',  value:manual,       type:'manual',    color:'#0EA5E9', icon:'🔵' },
+    { label:'총 법령 변경',   value:totalChanges, type:'all',       color:'#3B82F6', icon:'📋', barColor:'#3B82F6' },
+    { label:'사규 필수반영',  value:mandatory,    type:'mandatory', color:'#DC2626', icon:'🔴', barColor:'#DC2626' },
+    { label:'규정/규칙 반영', value:regulation,   type:'regulation',color:'#7C3AED', icon:'🟣', barColor:'#7C3AED' },
+    { label:'매뉴얼/가이드',  value:manual,       type:'manual',    color:'#0EA5E9', icon:'🔵', barColor:'#0EA5E9' },
   ];
 
-  document.getElementById('rules-stats-grid').innerHTML = stats.map(s => `
+  document.getElementById('rules-stats-grid').innerHTML = stats.map(s => {
+    const done = approvedByType(s.type === 'all' ? 'all' : s.type);
+    const total = s.type === 'all' ? _rulesCache.length : s.value;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return `
     <div class="stat-card" onclick="showRuleStatDetail2('${s.type}')" style="cursor:pointer;">
       <div style="font-size:10px;margin-bottom:6px;">${s.icon}</div>
       <div style="font-size:26px;font-weight:900;color:${s.color};line-height:1;">${s.value}</div>
       <div style="font-size:10px;color:#6B7280;margin-top:5px;font-weight:600;">${s.label}</div>
-    </div>`).join('');
+      <div class="mini-bar-track">
+        <div class="mini-bar-fill" style="width:${pct}%;background:${s.barColor};"></div>
+      </div>
+      <div style="font-size:9px;color:#9CA3AF;margin-top:4px;font-weight:600;">승인 ${done}/${total} (${pct}%)</div>
+    </div>`;
+  }).join('');
 
   document.getElementById('rules-cards').innerHTML = _rulesCache.slice(0, 5).map(r => ruleCardHtml(r, false)).join('');
 
@@ -2268,6 +2808,1264 @@ function showToast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2400);
+}
+
+// ═══════════════════════════════════════
+// TAB 6: 개선조치
+// ═══════════════════════════════════════
+let _imprCache  = [];
+let _imprFilter = 'all';
+
+const STATUS_CFG = {
+  '미완료': { color:'#EF4444', bg:'#FEF2F2', border:'#FECACA', icon:'○' },
+  '진행중': { color:'#D97706', bg:'#FFFBEB', border:'#FDE68A', icon:'◐' },
+  '완료':   { color:'#059669', bg:'#ECFDF5', border:'#A7F3D0', icon:'●' },
+};
+const TYPE_CFG = {
+  '이행점검조치': { color:'#1D4ED8', bg:'#DBEAFE' },
+  '자율개선조치': { color:'#7C3AED', bg:'#EDE9FE' },
+};
+
+function initImprPeriod() {
+  const sel = document.getElementById('impr-period-select');
+  if (!sel || sel.options.length > 0) return;
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadImprovement() {
+  const period = document.getElementById('impr-period-select')?.value;
+  if (!period) return;
+
+  // 데모 모드: 샘플 데이터 직접 사용
+  if (_DEMO_MODE) {
+    _imprCache = DEMO_IMPROVEMENT_ITEMS.map(i => ({...i}));
+    const periodItems = _imprCache.filter(a => a.origin_period === period);
+    const carried = _imprCache.filter(a => a.origin_period !== period && a.status !== '완료' && a.carryover_count > 0);
+    const summary = {
+      period,
+      current: {
+        total:  periodItems.length,
+        미완료: periodItems.filter(a => a.status === '미완료').length,
+        진행중: periodItems.filter(a => a.status === '진행중').length,
+        완료:   periodItems.filter(a => a.status === '완료').length,
+      },
+      carried: { total: carried.length, items: carried.map(a => a.id) },
+      all_incomplete: periodItems.filter(a => a.status !== '완료').length + carried.length,
+    };
+    renderImprSummary(period, summary);
+    renderImprCarryover(summary);
+    renderImprList();
+    return;
+  }
+
+  document.getElementById('impr-list').innerHTML =
+    `<div style="padding:28px;text-align:center;color:#9CA3AF;">⏳ 불러오는 중...</div>`;
+
+  try {
+    // 전체 목록 (이월 포함)
+    const [listResp, summaryResp] = await Promise.all([
+      fetch(`${API_BASE}/api/v1/improvement/${ACTIVE_CLIENT_ID}`, { signal: AbortSignal.timeout(10000) }),
+      fetch(`${API_BASE}/api/v1/improvement/summary/${ACTIVE_CLIENT_ID}/${period}`, { signal: AbortSignal.timeout(10000) }),
+    ]);
+
+    if (!listResp.ok) throw new Error(`HTTP ${listResp.status}`);
+    _imprCache = await listResp.json();
+
+    const summary = summaryResp.ok ? await summaryResp.json() : null;
+    renderImprSummary(period, summary);
+    renderImprCarryover(summary);
+    renderImprList();
+  } catch(e) {
+    document.getElementById('impr-list').innerHTML =
+      `<div style="padding:28px;text-align:center;color:#EF4444;">❌ 로딩 실패: ${e.message}</div>`;
+  }
+}
+
+function renderImprSummary(period, s) {
+  const periodItems = _imprCache.filter(a => a.origin_period === period);
+  const total   = periodItems.length;
+  const done    = periodItems.filter(a => a.status === '완료').length;
+  const ongoing = periodItems.filter(a => a.status === '진행중').length;
+  const pending = periodItems.filter(a => a.status === '미완료').length;
+  const carried = s?.carried?.total ?? _imprCache.filter(a => a.origin_period !== period && a.status !== '완료' && a.carryover_count > 0).length;
+
+  const cards = [
+    { label:'당기 조치 전체', value:total,   color:'#3B82F6', bg:'#EFF6FF' },
+    { label:'완료',           value:done,    color:'#059669', bg:'#ECFDF5' },
+    { label:'진행중',         value:ongoing, color:'#D97706', bg:'#FFFBEB' },
+    { label:'이월 미완료',    value:carried, color:'#7C3AED', bg:'#F5F3FF' },
+  ];
+
+  document.getElementById('impr-summary-grid').innerHTML = cards.map(c => `
+    <div class="stat-card" style="cursor:default;">
+      <div style="font-size:28px;font-weight:900;color:${c.color};line-height:1;">${c.value}</div>
+      <div style="font-size:10px;color:#6B7280;margin-top:5px;font-weight:600;">${c.label}</div>
+    </div>`).join('');
+}
+
+function renderImprCarryover(s) {
+  const banner = document.getElementById('impr-carryover-banner');
+  if (!banner) return;
+  const cnt = s?.carried?.total ?? 0;
+  if (cnt === 0) { banner.style.display = 'none'; return; }
+  banner.style.display = '';
+  banner.innerHTML = `
+    <div style="background:#F5F3FF;border-left:3px solid #7C3AED;border-radius:0 12px 12px 0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <span style="font-size:12px;font-weight:700;color:#5B21B6;">🔄 이월 미완료 ${cnt}건</span>
+        <span style="font-size:11px;color:#7C3AED;margin-left:8px;">이전 기간에서 완료되지 않은 조치가 있습니다</span>
+      </div>
+      <button onclick="filterImprovement('이월')" style="padding:5px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">이월 항목 보기</button>
+    </div>`;
+}
+
+function filterImprovement(f) {
+  _imprFilter = f;
+  ['all','미완료','진행중','완료','이월'].forEach(k => {
+    document.getElementById(`imf-${k}`)?.classList.toggle('active', k === f);
+  });
+  renderImprList();
+}
+
+function renderImprList() {
+  const list = document.getElementById('impr-list');
+  if (!list) return;
+
+  const period = document.getElementById('impr-period-select')?.value;
+  let items = _imprCache;
+
+  if (_imprFilter === '이월') {
+    items = items.filter(a => a.carryover_count > 0 && a.status !== '완료');
+  } else if (_imprFilter !== 'all') {
+    items = items.filter(a => a.status === _imprFilter);
+  }
+
+  if (!items.length) {
+    list.innerHTML = `<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.06);">
+      ${_imprCache.length === 0 ? '등록된 개선조치가 없습니다.<br><span style="font-size:11px;">이행점검에서 \'개선필요\' 발생 시 자동 연계하거나 직접 등록하세요.</span>'
+        : `"${_imprFilter}" 항목이 없습니다.`}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(a => imprCardHtml(a, period)).join('');
+}
+
+function imprCardHtml(a, currentPeriod) {
+  const sCfg = STATUS_CFG[a.status] || STATUS_CFG['미완료'];
+  const tCfg = TYPE_CFG[a.action_type] || TYPE_CFG['이행점검조치'];
+  const isCarried = a.carryover_count > 0 && a.origin_period !== currentPeriod;
+  const daysLeft = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / 86400000) : null;
+  const dueBadge = daysLeft !== null
+    ? `<span style="font-size:10px;font-weight:700;color:${daysLeft<0?'#EF4444':daysLeft<7?'#D97706':'#6B7280'};">
+        ${daysLeft<0 ? `D+${Math.abs(daysLeft)} 초과` : `D-${daysLeft}`}
+       </span>`
+    : '';
+
+  const statusBtns = ['미완료','진행중','완료'].map(s => {
+    const cfg = STATUS_CFG[s];
+    const active = a.status === s;
+    return `<button onclick="setImprStatus('${a.id}','${s}')"
+      style="padding:5px 12px;font-size:11px;font-weight:700;border-radius:8px;
+             border:2px solid ${active ? cfg.color : '#E5E7EB'};
+             background:${active ? cfg.bg : '#fff'};
+             color:${active ? cfg.color : '#9CA3AF'};cursor:pointer;transition:all 0.15s;">
+      ${cfg.icon} ${s}</button>`;
+  }).join('');
+
+  return `<div id="impr-card-${a.id}" style="background:#fff;border-radius:16px;border:1.5px solid ${isCarried ? '#DDD6FE' : sCfg.border};padding:18px 20px;transition:all 0.2s;">
+    <!-- 헤더 -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-size:10px;font-weight:700;color:${tCfg.color};background:${tCfg.bg};padding:2px 8px;border-radius:6px;">${a.action_type}</span>
+          ${a.rule_code ? `<span style="font-family:monospace;font-size:11px;font-weight:800;color:#1D4ED8;">${a.rule_code}</span>` : ''}
+          <span style="font-size:10px;color:#9CA3AF;">${a.origin_period}</span>
+          ${isCarried ? `<span style="font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;padding:2px 7px;border-radius:5px;">🔄 이월 ${a.carryover_count}회</span>` : ''}
+          ${dueBadge}
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#1F2937;line-height:1.4;">${a.title}</div>
+        ${a.law_name ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${a.law_name}</div>` : ''}
+      </div>
+      <div style="flex-shrink:0;padding:6px 14px;border-radius:10px;background:${sCfg.bg};border:1.5px solid ${sCfg.border};">
+        <span style="font-size:12px;font-weight:800;color:${sCfg.color};">${sCfg.icon} ${a.status}</span>
+      </div>
+    </div>
+
+    <!-- 발생 원인 / 조치 계획 -->
+    ${a.cause || a.action_plan ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      ${a.cause ? `<div style="background:#F9FAFB;border-radius:10px;padding:10px 12px;">
+        <div style="font-size:9px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">발생 원인</div>
+        <div style="font-size:12px;color:#374151;line-height:1.5;">${a.cause}</div>
+      </div>` : '<div></div>'}
+      ${a.action_plan ? `<div style="background:#F0FFF4;border-radius:10px;padding:10px 12px;">
+        <div style="font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">개선 계획</div>
+        <div style="font-size:12px;color:#374151;line-height:1.5;">${a.action_plan}</div>
+      </div>` : '<div></div>'}
+    </div>` : ''}
+
+    <!-- 조치 결과 입력 -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:9px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">조치 결과</div>
+      <textarea id="impr-result-${a.id}" rows="2" placeholder="조치 결과를 입력하세요..."
+        onblur="saveImprResult('${a.id}')"
+        style="width:100%;padding:8px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:12px;color:#374151;outline:none;resize:none;font-family:inherit;">${a.action_result||''}</textarea>
+    </div>
+
+    <!-- 상태 변경 + 저장 피드백 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;gap:6px;">${statusBtns}</div>
+      <div id="impr-saved-${a.id}" style="font-size:10px;color:#9CA3AF;"></div>
+    </div>
+  </div>`;
+}
+
+async function setImprStatus(actionId, status) {
+  const item = _imprCache.find(a => a.id === actionId);
+  if (!item) return;
+  item.status = status;
+  const period = document.getElementById('impr-period-select')?.value;
+  const card = document.getElementById(`impr-card-${actionId}`);
+  if (card) card.outerHTML = imprCardHtml(item, period);
+  await patchImprAction(actionId, { status });
+  renderImprSummary(period, null);
+}
+
+async function saveImprResult(actionId) {
+  const ta = document.getElementById(`impr-result-${actionId}`);
+  if (!ta) return;
+  const item = _imprCache.find(a => a.id === actionId);
+  if (item) item.action_result = ta.value;
+  await patchImprAction(actionId, { action_result: ta.value });
+}
+
+async function patchImprAction(actionId, payload) {
+  const saved = document.getElementById(`impr-saved-${actionId}`);
+  if (saved) saved.textContent = '저장 중...';
+
+  // 데모 모드
+  if (_DEMO_MODE) {
+    if (saved) { saved.textContent = '📌 데모 저장됨'; saved.style.color = '#D97706'; }
+    setTimeout(() => { if (saved) saved.textContent = ''; }, 2000);
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/improvement/${actionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (resp.ok) {
+      if (saved) { saved.textContent = '✓ 저장됨'; saved.style.color = '#059669'; }
+      setTimeout(() => { if (saved) saved.textContent = ''; }, 2000);
+    } else {
+      if (saved) { saved.textContent = '저장 실패'; saved.style.color = '#EF4444'; }
+    }
+  } catch(e) {
+    if (saved) { saved.textContent = `오류`; saved.style.color = '#EF4444'; }
+  }
+}
+
+async function autoCreateFromInspection() {
+  const period = document.getElementById('impr-period-select')?.value;
+  if (!period) return;
+
+  // 데모 모드: 샘플 개선필요 항목을 자동 연계 시뮬레이션
+  if (_DEMO_MODE) {
+    const needs = DEMO_INSPECTION_ITEMS.filter(i => i.result === '개선필요');
+    showToast(`✅ [데모] 개선조치 ${needs.length}건 자동 등록 완료`);
+    await loadImprovement();
+    return;
+  }
+
+  // 해당 기간 이행점검에서 '개선필요' 항목 수집
+  let checkIds = [];
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/inspection/${ACTIVE_CLIENT_ID}/${period}`, { signal: AbortSignal.timeout(10000) });
+    const data  = await resp.json();
+    checkIds = (data.items || []).filter(i => i.result === '개선필요' && i.check_id).map(i => i.check_id);
+  } catch(e) { showToast('이행점검 데이터 로딩 실패'); return; }
+
+  if (!checkIds.length) { showToast('개선필요 항목이 없습니다'); return; }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/improvement/auto-create-from-inspection`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: ACTIVE_CLIENT_ID, period, check_ids: checkIds }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await resp.json();
+    showToast(`✅ 개선조치 ${data.created}건 자동 등록 (${data.skipped}건 기존)`);
+    await loadImprovement();
+  } catch(e) {
+    showToast('자동 연계 실패');
+  }
+}
+
+function openImprModal() {
+  const period = document.getElementById('impr-period-select')?.value || '';
+  showModal(mHeader('개선조치 등록') + `
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:5px;">조치 제목 *</div>
+        <input id="impr-new-title" type="text" placeholder="조치 제목을 입력하세요"
+          style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:13px;outline:none;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:5px;">조치 유형</div>
+          <select id="impr-new-type" style="width:100%;padding:9px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:12px;font-weight:600;">
+            <option value="이행점검조치">이행점검조치</option>
+            <option value="자율개선조치">자율개선조치</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:5px;">완료 목표일</div>
+          <input id="impr-new-due" type="date" style="width:100%;padding:9px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:12px;outline:none;">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:5px;">발생 원인</div>
+        <textarea id="impr-new-cause" rows="2" placeholder="발생 원인을 입력하세요"
+          style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:12px;outline:none;resize:none;font-family:inherit;"></textarea>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6B7280;margin-bottom:5px;">개선 계획</div>
+        <textarea id="impr-new-plan" rows="2" placeholder="구체적인 개선 계획을 입력하세요"
+          style="width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:10px;font-size:12px;outline:none;resize:none;font-family:inherit;"></textarea>
+      </div>
+      <button onclick="submitImprAction('${period}')"
+        style="padding:13px;background:#000;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;">
+        등록
+      </button>
+    </div>`);
+}
+
+async function submitImprAction(period) {
+  const title = document.getElementById('impr-new-title')?.value?.trim();
+  if (!title) { showToast('제목을 입력해주세요'); return; }
+
+  // 데모 모드: 실제 저장 없이 시뮬레이션
+  if (_DEMO_MODE) {
+    showToast('📌 [데모] 개선조치 등록 완료 (DB 저장 없음)');
+    closeModal();
+    return;
+  }
+
+  const body = {
+    client_id:     ACTIVE_CLIENT_ID,
+    origin_period: period,
+    title,
+    action_type: document.getElementById('impr-new-type')?.value,
+    due_date:    document.getElementById('impr-new-due')?.value || null,
+    cause:       document.getElementById('impr-new-cause')?.value?.trim() || null,
+    action_plan: document.getElementById('impr-new-plan')?.value?.trim() || null,
+  };
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/improvement`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(8000),
+    });
+    if (resp.ok) {
+      showToast('✅ 개선조치 등록 완료');
+      closeModal();
+      await loadImprovement();
+    } else {
+      showToast('등록 실패');
+    }
+  } catch(e) {
+    showToast('오류: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════
+// TAB 5: 이행점검
+// ═══════════════════════════════════════
+let _inspCache = [];         // 현재 기간 점검 항목
+let _inspFilter = 'all';     // 필터 상태
+let _inspSaving = false;
+
+const RESULT_CONFIG = {
+  '적정':   { color:'#059669', bg:'#D1FAE5', icon:'✓' },
+  '개선필요':{ color:'#D97706', bg:'#FEF3C7', icon:'!' },
+  '해당없음':{ color:'#6B7280', bg:'#F3F4F6', icon:'—' },
+  '미점검': { color:'#EF4444', bg:'#FEE2E2', icon:'?' },
+};
+const METHOD_CONFIG = {
+  '대면':   { color:'#1D4ED8', bg:'#DBEAFE' },
+  '비대면': { color:'#7C3AED', bg:'#EDE9FE' },
+  '해당없음':{ color:'#6B7280', bg:'#F3F4F6' },
+};
+
+function initInspectionPeriod() {
+  const sel = document.getElementById('insp-period-select');
+  if (!sel || sel.options.length > 0) return;
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadInspection() {
+  const sel = document.getElementById('insp-period-select');
+  const period = sel?.value;
+  if (!period) return;
+
+  // 데모 모드: 샘플 데이터 직접 사용
+  if (_DEMO_MODE) {
+    _inspCache = DEMO_INSPECTION_ITEMS.map(i => ({...i}));
+    const summary = {
+      total:             _inspCache.length,
+      done:              _inspCache.filter(i => i.result === '적정').length,
+      needs_improvement: _inspCache.filter(i => i.result === '개선필요').length,
+      not_applicable:    _inspCache.filter(i => i.result === '해당없음').length,
+      not_checked:       _inspCache.filter(i => i.result === '미점검').length,
+    };
+    renderInspectionSummary(summary);
+    renderInspectionList();
+    return;
+  }
+
+  const summaryGrid = document.getElementById('insp-summary-grid');
+  const listBody    = document.getElementById('insp-list-body');
+  if (summaryGrid) summaryGrid.innerHTML = `<div style="grid-column:span 4;text-align:center;padding:20px;color:#9CA3AF;font-size:13px;">⏳ 불러오는 중...</div>`;
+  if (listBody)    listBody.innerHTML    = `<div style="padding:28px;text-align:center;color:#9CA3AF;">⏳ 불러오는 중...</div>`;
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/inspection/${ACTIVE_CLIENT_ID}/${period}`, {
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    _inspCache = data.items || [];
+    renderInspectionSummary(data.summary || {});
+    renderInspectionList();
+  } catch(e) {
+    if (listBody) listBody.innerHTML = `<div style="padding:28px;text-align:center;color:#EF4444;font-size:13px;">❌ 데이터 로딩 실패: ${e.message}</div>`;
+  }
+}
+
+function renderInspectionSummary(s) {
+  const total   = s.total   || _inspCache.length;
+  const done    = s.done    || 0;
+  const needs   = s.needs_improvement || 0;
+  const notChk  = s.not_checked ?? (total - done - needs);
+  const pct     = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const cards = [
+    { label:'전체 규칙',   value:total,  color:'#3B82F6', bg:'#EFF6FF' },
+    { label:'점검 완료',   value:done,   color:'#059669', bg:'#ECFDF5' },
+    { label:'개선 필요',   value:needs,  color:'#D97706', bg:'#FFFBEB' },
+    { label:'미점검',      value:notChk, color:'#EF4444', bg:'#FEF2F2' },
+  ];
+
+  const grid = document.getElementById('insp-summary-grid');
+  if (grid) grid.innerHTML = cards.map(c => `
+    <div class="stat-card" style="cursor:default;">
+      <div style="font-size:28px;font-weight:900;color:${c.color};line-height:1;">${c.value}</div>
+      <div style="font-size:10px;color:#6B7280;margin-top:5px;font-weight:600;">${c.label}</div>
+    </div>`).join('');
+
+  const wrap = document.getElementById('insp-progress-wrap');
+  if (wrap) wrap.innerHTML = `
+    <div style="background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,0.06);padding:14px 18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:11px;font-weight:700;color:#374151;">전체 점검 진행률</span>
+        <span style="font-size:13px;font-weight:900;color:${pct>=80?'#059669':pct>=50?'#D97706':'#EF4444'};">${pct}%</span>
+      </div>
+      <div style="background:#F3F4F6;border-radius:99px;height:8px;overflow:hidden;">
+        <div style="height:100%;border-radius:99px;background:${pct>=80?'#059669':pct>=50?'#F59E0B':'#EF4444'};width:${pct}%;transition:width 0.6s ease;"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
+        ${['적정','개선필요','해당없음','미점검'].map(r => {
+          const cnt = _inspCache.filter(i => i.result === r).length;
+          const cfg = RESULT_CONFIG[r];
+          return `<span style="font-size:11px;font-weight:600;color:${cfg.color};">${cfg.icon} ${r} ${cnt}건</span>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function filterInspection(f) {
+  _inspFilter = f;
+  ['all','미점검','개선필요'].forEach(k => {
+    document.getElementById(`if-${k}`)?.classList.toggle('active', k === f);
+  });
+  renderInspectionList();
+}
+
+function renderInspectionList() {
+  const body = document.getElementById('insp-list-body');
+  if (!body) return;
+
+  let items = _inspCache;
+  if (_inspFilter !== 'all') items = items.filter(i => i.result === _inspFilter);
+
+  if (!items.length) {
+    body.innerHTML = `<div style="padding:32px;text-align:center;color:#9CA3AF;font-size:13px;">${
+      _inspCache.length === 0
+        ? '업무규칙 데이터가 없습니다. 업무규칙 탭에서 먼저 생성하세요.'
+        : `"${_inspFilter}" 항목이 없습니다.`
+    }</div>`;
+    return;
+  }
+
+  body.innerHTML = items.map(item => inspRowHtml(item)).join('');
+}
+
+function inspRowHtml(item) {
+  const rCfg = RESULT_CONFIG[item.result] || RESULT_CONFIG['미점검'];
+  const mCfg = METHOD_CONFIG[item.method] || METHOD_CONFIG['대면'];
+  const priColors = { HIGH:'#DC2626', MEDIUM:'#D97706', LOW:'#059669' };
+  const priColor  = priColors[item.priority] || '#6B7280';
+
+  const resultBtns = ['적정','개선필요','해당없음','미점검'].map(r => {
+    const cfg = RESULT_CONFIG[r];
+    const active = item.result === r;
+    return `<button onclick="setInspResult('${item.rule_id}','${r}')"
+      style="padding:5px 10px;font-size:11px;font-weight:700;border-radius:8px;border:2px solid ${active?cfg.color:'#E5E7EB'};background:${active?cfg.bg:'#fff'};color:${active?cfg.color:'#9CA3AF'};cursor:pointer;transition:all 0.15s;">${cfg.icon} ${r}</button>`;
+  }).join('');
+
+  const methodBtns = ['대면','비대면','해당없음'].map(m => {
+    const cfg = METHOD_CONFIG[m];
+    const active = item.method === m;
+    return `<button onclick="setInspMethod('${item.rule_id}','${m}')"
+      style="padding:4px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1.5px solid ${active?cfg.color:'#E5E7EB'};background:${active?cfg.bg:'#fff'};color:${active?cfg.color:'#9CA3AF'};cursor:pointer;transition:all 0.15s;">${m}</button>`;
+  }).join('');
+
+  return `<div id="insp-row-${item.rule_id}" style="padding:16px 20px;border-bottom:1px solid #F3F4F6;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <!-- 규칙 정보 -->
+      <div style="flex:1;min-width:200px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="font-family:monospace;font-size:12px;font-weight:800;color:#1D4ED8;">${item.rule_code}</span>
+          <span style="font-size:10px;font-weight:700;color:${priColor};background:${priColor}18;padding:1px 6px;border-radius:4px;">${item.priority}</span>
+          <span style="font-size:10px;color:#9CA3AF;">${item.first_duty||''}</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:#1F2937;line-height:1.4;margin-bottom:2px;">${item.name}</div>
+        <div style="font-size:11px;color:#9CA3AF;">${item.law_name} ${item.article}</div>
+      </div>
+      <!-- 현재 결과 뱃지 -->
+      <div style="flex-shrink:0;padding:6px 14px;border-radius:10px;background:${rCfg.bg};color:${rCfg.color};font-size:12px;font-weight:800;align-self:center;">
+        ${rCfg.icon} ${item.result}
+      </div>
+    </div>
+    <!-- 점검 결과 선택 -->
+    <div style="margin-top:12px;">
+      <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">점검 결과</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${resultBtns}</div>
+    </div>
+    <!-- 점검 방식 -->
+    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em;">점검 방식</div>
+        <div style="display:flex;gap:5px;">${methodBtns}</div>
+      </div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:10px;font-weight:700;color:#6B7280;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em;">점검 의견</div>
+        <input type="text" id="insp-note-${item.rule_id}" value="${item.note||''}"
+          placeholder="자유 의견 입력..."
+          onblur="saveInspNote('${item.rule_id}')"
+          style="width:100%;padding:6px 10px;border:1px solid #E5E7EB;border-radius:8px;font-size:12px;color:#374151;outline:none;">
+      </div>
+    </div>
+    <div id="insp-saved-${item.rule_id}" style="margin-top:6px;font-size:10px;color:#9CA3AF;height:14px;"></div>
+  </div>`;
+}
+
+async function setInspResult(ruleId, result) {
+  const item = _inspCache.find(i => i.rule_id === ruleId);
+  if (!item) return;
+  item.result = result;
+  // 행만 리렌더
+  const row = document.getElementById(`insp-row-${ruleId}`);
+  if (row) row.outerHTML = inspRowHtml(item);
+  await saveInspCheck(ruleId);
+  renderInspectionSummary({ total:_inspCache.length });
+  // Phase1 대시보드 D-Day 배지도 갱신
+  renderRulesDashboard();
+}
+
+async function setInspMethod(ruleId, method) {
+  const item = _inspCache.find(i => i.rule_id === ruleId);
+  if (!item) return;
+  item.method = method;
+  const row = document.getElementById(`insp-row-${ruleId}`);
+  if (row) row.outerHTML = inspRowHtml(item);
+  await saveInspCheck(ruleId);
+}
+
+async function saveInspNote(ruleId) {
+  const item = _inspCache.find(i => i.rule_id === ruleId);
+  if (!item) return;
+  const inp = document.getElementById(`insp-note-${ruleId}`);
+  if (inp) item.note = inp.value;
+  await saveInspCheck(ruleId);
+}
+
+async function saveInspCheck(ruleId) {
+  const item   = _inspCache.find(i => i.rule_id === ruleId);
+  const period = document.getElementById('insp-period-select')?.value;
+  if (!item || !period) return;
+
+  const saved = document.getElementById(`insp-saved-${ruleId}`);
+  if (saved) saved.textContent = '저장 중...';
+
+  // 데모 모드
+  if (_DEMO_MODE) {
+    if (saved) { saved.textContent = '📌 데모 저장됨'; saved.style.color = '#D97706'; }
+    setTimeout(() => { if (saved) saved.textContent = ''; }, 2000);
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/inspection/upsert`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        client_id: ACTIVE_CLIENT_ID,
+        rule_id:   ruleId,
+        period,
+        result:    item.result,
+        method:    item.method,
+        note:      item.note || '',
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (resp.ok) {
+      if (saved) { saved.textContent = '✓ 저장됨'; saved.style.color='#059669'; }
+      setTimeout(() => { if(saved) { saved.textContent=''; } }, 2000);
+    } else {
+      if (saved) { saved.textContent = '저장 실패'; saved.style.color='#EF4444'; }
+    }
+  } catch(e) {
+    if (saved) { saved.textContent = `오류: ${e.message}`; saved.style.color='#EF4444'; }
+  }
+}
+
+// ═══════════════════════════════════════
+// TAB 7: 분기 보고서
+// ═══════════════════════════════════════
+let _reportCache = null;   // 현재 로딩된 보고서 데이터
+let _reportMonthly = [];   // 월별 집계 배열
+
+const QUARTER_STATUS = {
+  '작성중':  { color:'#6B7280', bg:'#F3F4F6', icon:'📝', step:0 },
+  '검토완료':{ color:'#D97706', bg:'#FFFBEB', icon:'🔍', step:1 },
+  '결재완료':{ color:'#059669', bg:'#ECFDF5', icon:'✅', step:2 },
+};
+
+// 데모 샘플 보고서
+const DEMO_REPORT_DATA = {
+  '2026-Q1': {
+    id:'rep-demo-q1', quarter:'2026-Q1', status:'결재완료',
+    period_from:'2026-01', period_to:'2026-03',
+    inspection_summary:  { total:30, ok:24, needs_improvement:3, not_applicable:2, not_checked:1, completion_rate:80 },
+    improvement_summary: { total:5,  done:4, ongoing:1, pending:0, carryover:0, completion_rate:80 },
+    note:'1분기 전반적으로 양호. 개인정보 암호화 이슈는 차기 분기 집중 점검 예정.',
+    reviewer:'김준법', reviewed_at:'2026-04-05T10:00:00',
+    approver:'이CCO',  approved_at:'2026-04-10T14:00:00',
+    live: false,
+  },
+  '2026-Q2': {
+    id:'rep-demo-q2', quarter:'2026-Q2', status:'검토완료',
+    period_from:'2026-04', period_to:'2026-06',
+    inspection_summary:  { total:20, ok:15, needs_improvement:3, not_applicable:1, not_checked:1, completion_rate:75 },
+    improvement_summary: { total:4,  done:1, ongoing:2, pending:1, carryover:1, completion_rate:25 },
+    note:'2분기 진행중. 임직원 신고 지연 건 집중 모니터링 필요.',
+    reviewer:'김준법', reviewed_at:'2026-05-02T09:00:00',
+    approver:null, approved_at:null,
+    live: false,
+  },
+};
+
+const DEMO_MONTHLY_DATA = {
+  '2026-Q1': [
+    { month:'2026-01', total:10, ok:9, needs_improvement:1, not_applicable:0, not_checked:0 },
+    { month:'2026-02', total:10, ok:8, needs_improvement:1, not_applicable:1, not_checked:0 },
+    { month:'2026-03', total:10, ok:7, needs_improvement:1, not_applicable:1, not_checked:1 },
+  ],
+  '2026-Q2': [
+    { month:'2026-04', month_label:'4월', total:10, ok:7, needs_improvement:2, not_applicable:1, not_checked:0 },
+    { month:'2026-05', month_label:'5월', total:10, ok:8, needs_improvement:1, not_applicable:0, not_checked:1 },
+    { month:'2026-06', month_label:'6월', total:0,  ok:0, needs_improvement:0, not_applicable:0, not_checked:0 },
+  ],
+};
+
+function initReportQuarter() {
+  const sel = document.getElementById('report-quarter-select');
+  if (!sel || sel.options.length > 0) return;
+  const now = new Date();
+  const currentQ = Math.ceil((now.getMonth() + 1) / 3);
+  const year = now.getFullYear();
+  for (let i = 0; i < 4; i++) {
+    let q = currentQ - i;
+    let y = year;
+    if (q <= 0) { q += 4; y -= 1; }
+    const val = `${y}-Q${q}`;
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = `${y}년 ${q}분기 (Q${q})`;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadReport() {
+  const quarter = document.getElementById('report-quarter-select')?.value;
+  if (!quarter) return;
+
+  // 진행 배너 토글
+  const banner = document.getElementById('report-demo-banner');
+  if (banner) banner.style.display = _DEMO_MODE ? 'flex' : 'none';
+
+  if (_DEMO_MODE) {
+    _reportCache = DEMO_REPORT_DATA[quarter] || {
+      id: null, quarter, status:'작성중',
+      period_from: quarter.replace('-Q1','2026-01').replace(/(\d+)-Q(\d)/, (_, y, q) => `${y}-${String((+q-1)*3+1).padStart(2,'0')}`),
+      period_to:   quarter.replace(/(\d+)-Q(\d)/, (_, y, q) => `${y}-${String((+q)*3).padStart(2,'0')}`),
+      inspection_summary: { total:0, ok:0, needs_improvement:0, not_applicable:0, not_checked:0, completion_rate:0 },
+      improvement_summary:{ total:0, done:0, ongoing:0, pending:0, carryover:0, completion_rate:0 },
+      note:'', reviewer:null, reviewed_at:null, approver:null, approved_at:null, live:true,
+    };
+    _reportMonthly = DEMO_MONTHLY_DATA[quarter] || [];
+    renderReport();
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/reports/${ACTIVE_CLIENT_ID}/${quarter}`, { signal: AbortSignal.timeout(10000) });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    _reportCache = await resp.json();
+    await loadMonthlyBreakdown(quarter);
+    renderReport();
+  } catch(e) {
+    document.getElementById('report-summary-grid').innerHTML =
+      `<div style="grid-column:span 2;padding:32px;text-align:center;color:#EF4444;font-size:13px;">❌ 로딩 실패: ${e.message}</div>`;
+  }
+}
+
+async function loadMonthlyBreakdown(quarter) {
+  // 분기 3개월을 각각 inspection summary로 집계
+  const [year, q] = quarter.split('-Q').map(Number);
+  const months = [1,2,3].map(i => {
+    const m = (q-1)*3 + i;
+    return `${year}-${String(m).padStart(2,'0')}`;
+  });
+  const results = await Promise.all(months.map(async m => {
+    try {
+      const r = await fetch(`${API_BASE}/api/v1/inspection/summary/${ACTIVE_CLIENT_ID}/${m}`, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return { month: m, total:0, ok:0, needs_improvement:0, not_applicable:0, not_checked:0 };
+      const d = await r.json();
+      return { month: m, total: d.total||0, ok: d.done||0, needs_improvement: d.needs||0, not_applicable: d.not_applicable||0, not_checked: d.not_checked||0 };
+    } catch { return { month: m, total:0, ok:0, needs_improvement:0, not_applicable:0, not_checked:0 }; }
+  }));
+  _reportMonthly = results;
+}
+
+function renderReport() {
+  if (!_reportCache) return;
+  const r = _reportCache;
+  renderReportStepper(r.status);
+  renderReportSummary(r);
+  renderReportHistory(r);
+  renderReportMonthly();
+  renderReportNote(r.note || '');
+  renderAdvanceBtn(r.status);
+}
+
+function renderReportStepper(status) {
+  const steps = ['작성중','검토완료','결재완료'];
+  const cur = QUARTER_STATUS[status]?.step ?? 0;
+  const el = document.getElementById('report-stepper');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:0;">` +
+    steps.map((s, i) => {
+      const cfg = QUARTER_STATUS[s];
+      const done = i <= cur;
+      const active = i === cur;
+      return `
+        <div style="display:flex;align-items:center;gap:0;flex:1;">
+          <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+            <div style="width:36px;height:36px;border-radius:50%;background:${done ? cfg.bg : '#F3F4F6'};border:2px solid ${done ? cfg.color : '#E5E7EB'};display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.3s;">${done ? cfg.icon : '○'}</div>
+            <div style="font-size:11px;font-weight:${active ? 800 : 600};color:${done ? cfg.color : '#9CA3AF'};margin-top:6px;">${s}</div>
+          </div>
+          ${i < steps.length-1 ? `<div style="flex:1;height:2px;background:${i < cur ? '#D1FAE5' : '#E5E7EB'};margin-bottom:20px;transition:all 0.3s;"></div>` : ''}
+        </div>`;
+    }).join('') +
+  `</div>`;
+}
+
+function renderReportSummary(r) {
+  const i = r.inspection_summary  || {};
+  const m = r.improvement_summary || {};
+  const grid = document.getElementById('report-summary-grid');
+  if (!grid) return;
+
+  const iBar = i.completion_rate || 0;
+  const mBar = m.completion_rate || 0;
+
+  grid.innerHTML = `
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:12px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:0.06em;">이행점검 현황</span>
+        <span style="font-size:22px;font-weight:900;color:#1D4ED8;">${iBar}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        ${[['전체',i.total,'#374151'],['적정',i.ok,'#059669'],['개선필요',i.needs_improvement,'#D97706'],['미점검',i.not_checked,'#EF4444']].map(([l,v,c]) =>
+          `<div style="text-align:center;"><div style="font-size:18px;font-weight:900;color:${c};">${v??0}</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px;">${l}</div></div>`
+        ).join('')}
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${iBar}%;background:#3B82F6;"></div></div>
+    </div>
+    <div class="card" style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:12px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:0.06em;">개선조치 현황</span>
+        <span style="font-size:22px;font-weight:900;color:#7C3AED;">${mBar}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        ${[['전체',m.total,'#374151'],['완료',m.done,'#059669'],['진행중',m.ongoing,'#D97706'],['이월',m.carryover,'#7C3AED']].map(([l,v,c]) =>
+          `<div style="text-align:center;"><div style="font-size:18px;font-weight:900;color:${c};">${v??0}</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px;">${l}</div></div>`
+        ).join('')}
+      </div>
+      <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${mBar}%;background:#7C3AED;"></div></div>
+    </div>`;
+}
+
+function renderReportHistory(r) {
+  const el = document.getElementById('report-history-body');
+  if (!el) return;
+  const fmt = iso => iso ? iso.slice(0,10) : null;
+  const rows = [];
+  rows.push(`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F3F4F6;">
+    <span style="font-size:18px;">📝</span>
+    <div><div style="font-size:12px;font-weight:700;color:#374151;">보고서 작성</div>
+    <div style="font-size:11px;color:#9CA3AF;">${r.created_at ? fmt(r.created_at) : '미등록'}</div></div></div>`);
+  if (r.reviewer) rows.push(`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F3F4F6;">
+    <span style="font-size:18px;">🔍</span>
+    <div><div style="font-size:12px;font-weight:700;color:#D97706;">검토 완료 — ${r.reviewer}</div>
+    <div style="font-size:11px;color:#9CA3AF;">${fmt(r.reviewed_at)}</div></div></div>`);
+  if (r.approver) rows.push(`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;">
+    <span style="font-size:18px;">✅</span>
+    <div><div style="font-size:12px;font-weight:700;color:#059669;">결재 완료 — ${r.approver}</div>
+    <div style="font-size:11px;color:#9CA3AF;">${fmt(r.approved_at)}</div></div></div>`);
+  el.innerHTML = rows.join('') || `<div style="color:#9CA3AF;font-size:13px;">이력 없음</div>`;
+}
+
+function renderReportNote(note) {
+  const ta = document.getElementById('report-note-ta');
+  if (ta && ta.value === '') ta.value = note;
+}
+
+function renderReportMonthly() {
+  const el = document.getElementById('report-monthly-body');
+  if (!el || !_reportMonthly.length) {
+    if (el) el.innerHTML = `<div style="color:#9CA3AF;font-size:13px;text-align:center;padding:16px;">월별 데이터 없음</div>`;
+    return;
+  }
+  el.innerHTML = _reportMonthly.map(m => {
+    const label = m.month ? m.month.replace(/(\d+)-(\d+)/, '$1년 $2월') : '';
+    const rate = m.total > 0 ? Math.round(m.ok / m.total * 100) : 0;
+    return `
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #F9FAFB;">
+      <div style="width:70px;font-size:12px;font-weight:700;color:#374151;flex-shrink:0;">${label}</div>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-bottom:4px;">
+          <span>적정 ${m.ok}건 / 전체 ${m.total}건</span>
+          <span style="font-weight:700;color:${rate>=80?'#059669':rate>=60?'#D97706':'#EF4444'};">${rate}%</span>
+        </div>
+        <div class="mini-bar-track">
+          <div class="mini-bar-fill" style="width:${rate}%;background:${rate>=80?'#10B981':rate>=60?'#F59E0B':'#EF4444'};"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        ${m.needs_improvement > 0 ? `<span style="font-size:10px;font-weight:700;background:#FEF3C7;color:#D97706;padding:2px 7px;border-radius:5px;">개선필요 ${m.needs_improvement}</span>` : ''}
+        ${m.not_checked > 0 ? `<span style="font-size:10px;font-weight:700;background:#FEE2E2;color:#EF4444;padding:2px 7px;border-radius:5px;">미점검 ${m.not_checked}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAdvanceBtn(status) {
+  const btn = document.getElementById('report-advance-btn');
+  if (!btn) return;
+  const next = { '작성중':'검토완료', '검토완료':'결재완료', '결재완료':null };
+  const nextStatus = next[status];
+  if (!nextStatus) {
+    btn.textContent = '✅ 결재 완료'; btn.disabled = true;
+    btn.style.background = '#D1FAE5'; btn.style.color = '#059669';
+  } else {
+    btn.textContent = `→ ${nextStatus}`; btn.disabled = false;
+    btn.style.background = '#000'; btn.style.color = '#fff';
+  }
+}
+
+async function advanceReportStatus() {
+  if (!_reportCache) return;
+  const next = { '작성중':'검토완료', '검토완료':'결재완료' };
+  const nextStatus = next[_reportCache.status];
+  if (!nextStatus) return;
+
+  if (_DEMO_MODE) {
+    const actor = nextStatus === '검토완료' ? '김준법(데모)' : '이CCO(데모)';
+    _reportCache.status = nextStatus;
+    if (nextStatus === '검토완료') { _reportCache.reviewer = actor; _reportCache.reviewed_at = new Date().toISOString(); }
+    else { _reportCache.approver = actor; _reportCache.approved_at = new Date().toISOString(); }
+    renderReport();
+    showToast(`📌 [데모] ${nextStatus} 처리 완료`);
+    return;
+  }
+
+  const actor = prompt(`${nextStatus} 처리자 이름을 입력하세요:`);
+  if (actor === null) return;
+
+  try {
+    if (!_reportCache.id) await saveReport();
+    const resp = await fetch(`${API_BASE}/api/v1/reports/${_reportCache.id}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus, actor }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (resp.ok) {
+      _reportCache.status = nextStatus;
+      if (nextStatus === '검토완료') { _reportCache.reviewer = actor; _reportCache.reviewed_at = new Date().toISOString(); }
+      else { _reportCache.approver = actor; _reportCache.approved_at = new Date().toISOString(); }
+      renderReport();
+      showToast(`✅ ${nextStatus} 처리 완료`);
+    } else { showToast('처리 실패'); }
+  } catch(e) { showToast('오류: ' + e.message); }
+}
+
+async function saveReport() {
+  const quarter = document.getElementById('report-quarter-select')?.value;
+  if (!quarter) return;
+  const note = document.getElementById('report-note-ta')?.value || '';
+
+  if (_DEMO_MODE) {
+    if (_reportCache) _reportCache.note = note;
+    showToast('📌 [데모] 집계 저장됨');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/v1/reports`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: ACTIVE_CLIENT_ID, quarter, note }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (_reportCache) _reportCache.id = data.id;
+      showToast('✅ 보고서 저장 완료');
+      await loadReport();
+    } else { showToast('저장 실패'); }
+  } catch(e) { showToast('오류: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE 5: 고객사 전환 UI + 온보딩 위자드
+// ═══════════════════════════════════════════════════════════════
+
+const INDUSTRY_ICONS = { '보험(생보)':'🏥', '보험(손보)':'🛡️', '은행':'🏦', '증권':'📈', '카드':'💳', '자산운용':'💼' };
+function industryIcon(ind) { return INDUSTRY_ICONS[ind] || '🏢'; }
+
+// ── 헤더 고객사 표시 업데이트 ────────────────────────────────
+function updateClientHeader() {
+  const nameEl = document.getElementById('client-switcher-name');
+  const iconEl = document.getElementById('client-switcher-icon');
+  if (nameEl) nameEl.textContent = _activeClientInfo.name;
+  if (iconEl) iconEl.textContent = industryIcon(_activeClientInfo.industry);
+}
+
+// ── 전체 고객사 목록 로드 ────────────────────────────────────
+async function loadClients() {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/clients`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return;
+    _allClients = await res.json();
+  } catch(e) { /* 오프라인/에러 시 무시 */ }
+}
+
+// ── 고객사 관리 모달 열기 ────────────────────────────────────
+async function openClientManager() {
+  document.getElementById('client-mgr-modal').classList.remove('hidden');
+  await loadClients();
+  renderClientList();
+}
+
+function closeClientManager() {
+  document.getElementById('client-mgr-modal').classList.add('hidden');
+}
+
+function renderClientList() {
+  const area = document.getElementById('client-list-area');
+  if (!area) return;
+  if (!_allClients.length) {
+    area.innerHTML = `<div style="color:#9CA3AF;font-size:12px;text-align:center;padding:24px;">등록된 고객사가 없습니다.</div>`;
+    return;
+  }
+  area.innerHTML = _allClients.map(c => {
+    const isActive = c.id === ACTIVE_CLIENT_ID;
+    return `
+      <div class="client-card ${isActive ? 'active-client' : ''}" style="margin-bottom:10px;" onclick="switchClient(${JSON.stringify(c).replace(/"/g,'&quot;')})">
+        <div style="font-size:22px;">${industryIcon(c.industry)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#111;">${c.name}${isActive ? ' <span style="font-size:10px;background:#000;color:#fff;padding:1px 6px;border-radius:4px;">현재</span>' : ''}</div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+            <span class="client-industry-badge">${c.industry || '금융회사'}</span>
+            <span style="font-size:11px;color:#9CA3AF;">${c.session_count}개 세션</span>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:${isActive ? '#9CA3AF' : '#6366F1'};">${isActive ? '현재 사용 중' : '전환 →'}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── 고객사 전환 ───────────────────────────────────────────────
+async function switchClient(client) {
+  if (client.id === ACTIVE_CLIENT_ID) { closeClientManager(); return; }
+
+  // 해당 고객사의 최신 세션 조회
+  let sessionId = null;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/clients/${client.id}/sessions`, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const sessions = await res.json();
+      if (sessions.length) sessionId = sessions[0].id;
+    }
+  } catch(e) {}
+
+  // 전역 ID 및 info 업데이트
+  ACTIVE_CLIENT_ID = client.id;
+  ACTIVE_SESSION_ID = sessionId || '';
+  _activeClientInfo = { id: client.id, name: client.name, industry: client.industry || '' };
+
+  // 캐시 초기화
+  _prohibCache = []; _rulesCache = [];
+  _prohibLoaded = false; _rulesLoaded = false;
+  _inspCache = null; _imprCache = null;
+  _reportCache = null;
+
+  updateClientHeader();
+  closeClientManager();
+  showToast(`✅ ${client.name}으로 전환됨`);
+
+  // 현재 활성 탭 재로드
+  const active = document.querySelector('.tab-btn.active')?.id?.replace('t-','');
+  if (active === 'prohibit' || active === 'duty') { loadProhibitionsAndRules(); }
+  else if (active === 'rules') { loadProhibitionsAndRules(); }
+  else if (active === 'inspection') loadInspection();
+  else if (active === 'improvement') loadImprovement();
+  else if (active === 'report') { initReportQuarter(); loadReport(); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 온보딩 위자드
+// ═══════════════════════════════════════════════════════════════
+
+function openOnboarding() {
+  closeClientManager();
+  // 초기화
+  _obCreatedClientId = null;
+  _obCreatedDocId = null;
+  document.getElementById('ob-name').value = '';
+  document.getElementById('ob-note').value = '';
+  document.getElementById('ob-file-name').textContent = '선택된 파일 없음';
+  document.getElementById('ob-upload-btn').disabled = true;
+  document.getElementById('ob-upload-progress').style.display = 'none';
+  document.querySelectorAll('.industry-chip').forEach(c => c.classList.remove('selected'));
+  document.querySelector('.industry-chip[data-industry="보험(생보)"]').classList.add('selected');
+  goOnboardStep(1);
+  document.getElementById('onboard-modal').classList.remove('hidden');
+}
+
+function closeOnboarding() {
+  document.getElementById('onboard-modal').classList.add('hidden');
+}
+
+function goOnboardStep(step) {
+  [1,2,3].forEach(s => {
+    document.getElementById(`onboard-step-${s}`)?.classList.toggle('hidden', s !== step);
+    const dot = document.getElementById(`ostep-dot-${s}`);
+    if (dot) {
+      dot.className = 'wizard-step-dot ' + (s < step ? 'done' : s === step ? 'current' : 'pending');
+      dot.textContent = s < step ? '✓' : s;
+    }
+    const lbl = document.getElementById(`ostep-lbl-${s}`);
+    if (lbl) lbl.style.color = s <= step ? '#6366F1' : '#9CA3AF';
+    const line = document.getElementById(`ostep-line-${s}`);
+    if (line) line.style.background = s < step ? '#6366F1' : '#E5E7EB';
+  });
+}
+
+function selectIndustry(btn) {
+  document.querySelectorAll('.industry-chip').forEach(c => c.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+async function onboardStep1Next() {
+  const name = document.getElementById('ob-name').value.trim();
+  if (!name) { document.getElementById('ob-name').focus(); showToast('금융회사명을 입력하세요.'); return; }
+  const industry = document.querySelector('.industry-chip.selected')?.dataset.industry || '기타';
+  const note = document.getElementById('ob-note').value.trim();
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/clients`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, industry, note }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) throw new Error('생성 실패');
+    const client = await res.json();
+    _obCreatedClientId = client.id;
+    // 신규 세션도 자동 생성
+    const today = new Date().toISOString().slice(0,10);
+    await fetch(`${API_BASE}/api/v1/clients/${client.id}/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: `${name} 초기 분석 세션`, period_type: '1m', period_from: today }),
+      signal: AbortSignal.timeout(8000),
+    });
+    goOnboardStep(2);
+  } catch(e) {
+    showToast('고객사 생성 실패: ' + e.message);
+  }
+}
+
+function handleObFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('ob-file-name').textContent = `📎 ${file.name} (${(file.size/1024).toFixed(0)}KB)`;
+  document.getElementById('ob-upload-btn').disabled = false;
+}
+
+async function onboardStep2Upload() {
+  if (!_obCreatedClientId) return;
+  const fileInput = document.getElementById('ob-file-input');
+  const file = fileInput.files[0];
+  if (!file) { showToast('파일을 선택하세요.'); return; }
+
+  const progress = document.getElementById('ob-upload-progress');
+  const bar = document.getElementById('ob-upload-bar');
+  const msg = document.getElementById('ob-upload-msg');
+  progress.style.display = 'block';
+  document.getElementById('ob-upload-btn').disabled = true;
+
+  // 업로드 진행 애니메이션
+  msg.textContent = '파일 업로드 중…';
+  bar.style.width = '30%';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('doc_type', 'duty_structure');
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/clients/${_obCreatedClientId}/documents`, {
+      method: 'POST', body: fd, signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error('업로드 실패');
+    const doc = await res.json();
+    _obCreatedDocId = doc.id;
+    bar.style.width = '60%';
+    msg.textContent = 'AI 책무구조 파싱 중…';
+
+    // 책무구조 파싱
+    const parseRes = await fetch(`${API_BASE}/api/v1/clients/${_obCreatedClientId}/duty-structure`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doc_ids: [doc.id] }),
+      signal: AbortSignal.timeout(60000),
+    });
+    bar.style.width = '100%';
+    if (parseRes.ok) {
+      const parsed = await parseRes.json();
+      msg.textContent = `✅ ${parsed.executive_count}명 임원 책무 구조 파싱 완료`;
+    } else {
+      msg.textContent = '⚠️ 파싱 완료 (일부 오류)';
+    }
+    await new Promise(r => setTimeout(r, 800));
+    showOnboardComplete(true);
+  } catch(e) {
+    msg.textContent = '❌ 오류: ' + e.message;
+    document.getElementById('ob-upload-btn').disabled = false;
+  }
+}
+
+function onboardStep2Skip() {
+  showOnboardComplete(false);
+}
+
+function showOnboardComplete(hasDoc) {
+  goOnboardStep(3);
+  document.getElementById('ob-complete-icon').textContent = hasDoc ? '🎉' : '✅';
+  document.getElementById('ob-complete-title').textContent = hasDoc ? '온보딩 완료!' : '고객사 등록 완료!';
+  document.getElementById('ob-complete-desc').innerHTML = hasDoc
+    ? '책무구조도가 파싱되었습니다.<br>금지행위 추출 및 업무규칙 생성을 바로 진행하세요.'
+    : '고객사가 등록되었습니다.<br>책무구조도를 나중에 업로드하거나 법령 모니터링부터 시작하세요.';
+}
+
+async function finishOnboarding() {
+  closeOnboarding();
+  if (!_obCreatedClientId) return;
+  await loadClients();
+  const client = _allClients.find(c => c.id === _obCreatedClientId);
+  if (client) await switchClient(client);
+}
+
+// ── 드래그 앤 드롭 처리 ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('ob-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const input = document.getElementById('ob-file-input');
+      const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+      handleObFileSelect(input);
+    }
+  });
+});
+
+async function saveReportNote() {
+  if (!_reportCache?.id) return;
+  const note = document.getElementById('report-note-ta')?.value || '';
+  const saved = document.getElementById('report-note-saved');
+
+  if (_DEMO_MODE) {
+    _reportCache.note = note;
+    if (saved) { saved.textContent = '📌 데모 저장됨'; saved.style.color = '#D97706'; }
+    setTimeout(() => { if (saved) saved.textContent = ''; }, 2000);
+    return;
+  }
+
+  try {
+    await fetch(`${API_BASE}/api/v1/reports/${_reportCache.id}/note`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }), signal: AbortSignal.timeout(8000),
+    });
+    if (saved) { saved.textContent = '✓ 저장됨'; saved.style.color = '#059669'; }
+    setTimeout(() => { if (saved) saved.textContent = ''; }, 2000);
+  } catch(e) {
+    if (saved) { saved.textContent = '저장 실패'; saved.style.color = '#EF4444'; }
+  }
 }
 </script>
 </body>

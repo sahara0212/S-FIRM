@@ -117,25 +117,41 @@
 <body>
 
 <!-- HEADER -->
-<header style="background: rgba(255,255,255,0.88); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.07); position: sticky; top: 0; z-index: 100;">
-  <div style="max-width: 720px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <h1 style="font-size: 16px; font-weight: 900; letter-spacing: -0.5px;">책무 구조 운영 플랫폼</h1>
-      <span style="background: #007AFF; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">by S-Firm</span>
-      <button class="client-switcher-btn" onclick="openClientManager()" title="고객사 전환">
-        <span id="client-switcher-icon">🏢</span>
-        <span class="client-switcher-name" id="client-switcher-name">KB라이프생명</span>
-        <span style="color:#9CA3AF;font-size:10px;margin-left:2px;">▾</span>
-      </button>
+<header style="background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,0.07); position: sticky; top: 0; z-index: 100;">
+  <div style="max-width: 760px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 0;">
+    <!-- 로고 영역 -->
+    <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;font-weight:900;letter-spacing:-0.3px;color:#111;">책무 구조 운영 플랫폼</span>
+        <span style="background:#007AFF;color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;letter-spacing:0.02em;flex-shrink:0;">by S-Firm</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span id="data-source-badge" style="display:none;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;"></span>
+        <span id="header-dday-badge" style="display:none;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;"></span>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span id="data-source-badge" style="display:none;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"></span>
-      <span id="header-dday-badge" style="display:none;font-size:11px;font-weight:800;padding:3px 10px;border-radius:8px;"></span>
+
+    <!-- 구분선 -->
+    <div style="width:1px;height:28px;background:#E5E7EB;margin:0 14px;flex-shrink:0;"></div>
+
+    <!-- 고객사 전환 -->
+    <button class="client-switcher-btn" onclick="openClientManager()" title="고객사 전환" style="flex-shrink:0;">
+      <span id="client-switcher-icon">🏢</span>
+      <span class="client-switcher-name" id="client-switcher-name">KB라이프생명</span>
+      <span style="color:#9CA3AF;font-size:10px;margin-left:2px;">▾</span>
+    </button>
+
+    <!-- 스페이서 -->
+    <div style="flex:1;"></div>
+
+    <!-- 우측 컨트롤 -->
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <button id="demo-toggle-btn" class="demo-toggle-btn" onclick="toggleDemoMode()" title="시연 모드 — 샘플 데이터로 전환">🎯 데모</button>
-      <div style="font-size: 12px; color: #6B7280; font-weight: 500;">기준일: <span id="today-date"></span></div>
+      <div style="font-size:11px;color:#9CA3AF;font-weight:500;white-space:nowrap;"><span id="today-date"></span></div>
     </div>
   </div>
-  <div style="max-width: 720px; margin: 0 auto; padding: 0 24px 10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+
+  <div style="max-width: 760px; margin: 0 auto; padding: 0 24px 9px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
     <div style="display: flex; background: #F3F4F6; border-radius: 12px; padding: 4px; gap: 2px; width: fit-content;">
       <button class="tab-btn active" onclick="switchTab('monitor')" id="t-monitor">법령 모니터링</button>
       <button class="tab-btn" onclick="switchTab('prohibit')" id="t-prohibit">금지행위 추출</button>
@@ -165,7 +181,7 @@
 </header>
 
 <!-- MAIN -->
-<main style="max-width: 720px; margin: 0 auto; padding: 28px 24px 60px;">
+<main style="max-width: 760px; margin: 0 auto; padding: 28px 24px 60px;">
 
   <!-- TAB 1: 법령 모니터링 -->
   <div id="view-monitor" class="fade-in">

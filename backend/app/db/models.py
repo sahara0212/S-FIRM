@@ -152,3 +152,78 @@ class BusinessRule(Base):
     updated_at:       Mapped[datetime]       = mapped_column(DateTime, default=_now, onupdate=_now)
 
     duty_mapping: Mapped["DutyMapping"] = relationship(back_populates="business_rule")
+    inspection_checks: Mapped[list["InspectionCheck"]] = relationship(back_populates="rule", cascade="all, delete-orphan")
+
+
+# ── 이행점검 결과 ─────────────────────────────────────────────────────────────
+class InspectionCheck(Base):
+    __tablename__ = "inspection_checks"
+
+    id:         Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
+    client_id:  Mapped[str]           = mapped_column(ForeignKey("clients.id"), nullable=False)
+    rule_id:    Mapped[str]           = mapped_column(ForeignKey("business_rules.id"), nullable=False)
+    period:     Mapped[str]           = mapped_column(String(7))    # YYYY-MM
+    # 점검 결과: 적정 | 개선필요 | 해당없음 | 미점검
+    result:     Mapped[Optional[str]] = mapped_column(String(20), default="미점검")
+    # 점검 방식: 대면 | 비대면 | 해당없음
+    method:     Mapped[Optional[str]] = mapped_column(String(20), default="대면")
+    note:       Mapped[Optional[str]] = mapped_column(Text)
+    checked_by: Mapped[Optional[str]] = mapped_column(String(100))
+    checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at: Mapped[datetime]      = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime]      = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    rule: Mapped["BusinessRule"] = relationship(back_populates="inspection_checks")
+
+
+# ── 개선조치 ──────────────────────────────────────────────────────────────────
+class ImprovementAction(Base):
+    __tablename__ = "improvement_actions"
+
+    id:             Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
+    client_id:      Mapped[str]           = mapped_column(ForeignKey("clients.id"), nullable=False)
+    # 연계 출처: 이행점검에서 '개선필요' 발생 시 자동 생성, 또는 수동 등록
+    check_id:       Mapped[Optional[str]] = mapped_column(ForeignKey("inspection_checks.id"))
+    rule_id:        Mapped[Optional[str]] = mapped_column(ForeignKey("business_rules.id"))
+    origin_period:  Mapped[str]           = mapped_column(String(7))   # 최초 발생 기간 YYYY-MM
+    # 조치 내용
+    title:          Mapped[str]           = mapped_column(String(200))
+    cause:          Mapped[Optional[str]] = mapped_column(Text)         # 발생 원인
+    action_plan:    Mapped[Optional[str]] = mapped_column(Text)         # 개선 계획
+    action_result:  Mapped[Optional[str]] = mapped_column(Text)         # 조치 결과
+    action_type:    Mapped[str]           = mapped_column(String(20), default="이행점검조치")
+    # 이행점검조치 | 자율개선조치
+    # 상태: 미완료 → 진행중 → 완료
+    status:         Mapped[str]           = mapped_column(String(20), default="미완료")
+    due_date:       Mapped[Optional[str]] = mapped_column(String(10))   # YYYY-MM-DD
+    completed_at:   Mapped[Optional[datetime]] = mapped_column(DateTime)
+    # 이월 추적: 완료 못 하고 다음 기간으로 넘어간 횟수
+    carryover_count: Mapped[int]          = mapped_column(Integer, default=0)
+    last_period:    Mapped[Optional[str]] = mapped_column(String(7))    # 마지막 이월 기간
+    created_at:     Mapped[datetime]      = mapped_column(DateTime, default=_now)
+    updated_at:     Mapped[datetime]      = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+# ── 분기 보고서 ───────────────────────────────────────────────────────────────
+class QuarterlyReport(Base):
+    __tablename__ = "quarterly_reports"
+
+    id:           Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
+    client_id:    Mapped[str]            = mapped_column(ForeignKey("clients.id"), nullable=False)
+    quarter:      Mapped[str]            = mapped_column(String(7))    # 2026-Q1
+    period_from:  Mapped[str]            = mapped_column(String(7))    # 2026-01
+    period_to:    Mapped[str]            = mapped_column(String(7))    # 2026-03
+    # 상태: 작성중 → 검토완료 → 결재완료
+    status:       Mapped[str]            = mapped_column(String(20), default="작성중")
+    # 집계 스냅샷 (확정 시점의 수치 보존)
+    inspection_summary: Mapped[Optional[dict]] = mapped_column(JSON)
+    improvement_summary: Mapped[Optional[dict]] = mapped_column(JSON)
+    # 보고서 본문 메모
+    note:         Mapped[Optional[str]]  = mapped_column(Text)
+    # 검토/결재 이력
+    reviewer:     Mapped[Optional[str]]  = mapped_column(String(100))
+    reviewed_at:  Mapped[Optional[datetime]] = mapped_column(DateTime)
+    approver:     Mapped[Optional[str]]  = mapped_column(String(100))
+    approved_at:  Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at:   Mapped[datetime]       = mapped_column(DateTime, default=_now)
+    updated_at:   Mapped[datetime]       = mapped_column(DateTime, default=_now, onupdate=_now)

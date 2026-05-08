@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import anthropic
 from app.services.law_api import fetcher
@@ -23,6 +24,7 @@ load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 # Resolve paths relative to this file (works regardless of cwd)
 _BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _FRONTEND_INDEX = os.path.join(_BASE_DIR, "frontend", "index.html")
+_DOCS_DIR = os.path.join(_BASE_DIR, "docs")
 
 app = FastAPI(title="S-FIRM Compliance API", version="2.0")
 
@@ -46,6 +48,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 정적 파일 (매뉴얼 PDF 등)
+if os.path.isdir(_DOCS_DIR):
+    app.mount("/docs", StaticFiles(directory=_DOCS_DIR), name="docs")
 
 
 @app.get("/")

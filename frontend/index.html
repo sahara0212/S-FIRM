@@ -1524,6 +1524,13 @@ function onLoginSuccess(user) {
 async function checkAutoLogin() {
   const token = localStorage.getItem(_AUTH_KEY);
   if (!token) { _showLoginOverlay(); return; }
+  // 데모(정적 배포): 저장된 데모 토큰으로 세션 복원
+  if (!API_BASE && token.startsWith('demo-')) {
+    const u = token.slice(5);
+    const acct = _DEMO_ACCOUNTS.find(a => a.username === u);
+    onLoginSuccess(acct ? { role: acct.role, display_name: acct.display } : { role: '책무담당자', display_name: u });
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/api/v1/auth/me?token=${token}`);
     if (!res.ok) throw new Error();
@@ -1547,6 +1554,18 @@ async function doLogin() {
   }
   btn.textContent = '로그인 중...'; btn.disabled = true;
   errEl.style.display = 'none';
+
+  // 데모(정적 배포·백엔드 없음): 클라이언트 인증으로 모두 허용
+  if (!API_BASE) {
+    const acct = _DEMO_ACCOUNTS.find(a => a.username === username);
+    const user = acct
+      ? { role: acct.role, display_name: acct.display }
+      : { role: '책무담당자', display_name: username };
+    localStorage.setItem(_AUTH_KEY, 'demo-' + username);
+    onLoginSuccess(user);
+    btn.textContent = '로그인'; btn.disabled = false;
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/v1/auth/login`, {

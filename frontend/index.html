@@ -1686,6 +1686,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 오버레이 초기 상태 — display:flex가 인라인으로 설정돼 있으므로 hide 먼저
   document.getElementById('login-overlay').style.display = 'none';
 
+  // 백엔드 없는 정적 배포(GitHub Pages 등): 시연용 데모 모드 자동 활성 → 샘플 데이터 표시
+  if (!API_BASE && !_DEMO_MODE) toggleDemoMode();
+
   // 자동 로그인 확인 (토큰 없으면 로그인 오버레이 표시)
   await checkAutoLogin();
 

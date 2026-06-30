@@ -73,8 +73,11 @@ def get_law_monitoring(
     try:
         core    = fetcher.fetch_monitoring_data(days=days, from_date=from_date, to_date=to_date)
         related = fetcher.fetch_related_data(days=days, from_date=from_date, to_date=to_date)
+        has_live_source = any(item.get("source") == "live" for item in core.values())
         return JSONResponse({
             "status":  "live",
+            "law_api_status": "live" if has_live_source else "error",
+            "law_api_message": "" if has_live_source else (fetcher.last_error or "법령정보센터 데이터를 가져오지 못했습니다."),
             "core":    core,
             "related": related,
             "fetched_at": core[next(iter(core))]["last_fetched"] if core else "",

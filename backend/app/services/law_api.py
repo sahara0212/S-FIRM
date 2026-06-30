@@ -6,11 +6,13 @@
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+import os
 
 
 class LawMonitoringFetcher:
-    API_KEY  = "sahara0212"
+    API_KEY  = os.getenv("OPEN_API_KEY", "sahara0212")
     LAW_BASE = "https://www.law.go.kr/DRF"
+    last_error: str | None = None
 
     # 모니터링 대상 핵심 법령
     TARGET_LAWS = [
@@ -39,8 +41,18 @@ class LawMonitoringFetcher:
                 timeout=8,
             )
             if resp.status_code == 200:
-                return ET.fromstring(resp.content)
+                root = ET.fromstring(resp.content)
+                result = (root.findtext("result") or "").strip()
+                msg = (root.findtext("msg") or "").strip()
+                if result and result != "00":
+                    self.last_error = msg or result
+                    print(f"[LawAPI] {endpoint} 검증 실패: {self.last_error}")
+                    return None
+                self.last_error = None
+                return root
+            self.last_error = f"HTTP {resp.status_code}"
         except Exception as e:
+            self.last_error = str(e)
             print(f"[LawAPI] {endpoint} 오류: {e}")
         return None
 

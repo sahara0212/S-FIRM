@@ -1367,15 +1367,15 @@ const EXEC_CHAIN = {
 // ═══════════════════════════════════════
 
 // 포트에 따라 API 베이스 URL 결정
-// - FastAPI가 직접 서빙(포트 8001): 동일 오리진 → ''
+// - FastAPI가 직접 서빙하는 경우: 동일 오리진 → ''
 const API_BASE = (() => {
   const { port, hostname } = window.location;
   // Railway 또는 원격 호스트 → 같은 서버에서 서빙하므로 상대경로
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') return '';
-  // 로컬 FastAPI 직접 서빙 (port 8000) → 상대경로
-  if (port === '8000') return '';
+  // 로컬 FastAPI 직접 서빙 → 상대경로
+  if (['8000', '8001', '8766'].includes(port)) return window.location.origin;
   // 로컬 정적 서버 (port 3000 등) → 로컬 백엔드 직접 지정
-  return 'http://localhost:8001';
+  return 'http://127.0.0.1:8766';
 })();
 
 function setDataBadge(isLive, fetchedAt) {
@@ -1388,6 +1388,14 @@ function setDataBadge(isLive, fetchedAt) {
     badge.style.background = '#FEF3C7'; badge.style.color = '#D97706';
     badge.textContent = '🟡 샘플 데이터';
   }
+}
+
+function setDataBadgeWarning(message) {
+  const badge = document.getElementById('data-source-badge');
+  badge.style.display = 'inline-block';
+  badge.style.background = '#FEF3C7';
+  badge.style.color = '#92400E';
+  badge.textContent = message || '🟡 법령 API 확인 필요';
 }
 
 async function loadFromAPI() {
@@ -1417,7 +1425,11 @@ async function loadFromAPI() {
           if (idx >= 0) RELATED_LAWS[idx].changes = r.changes;
         }
       }
-      setDataBadge(true, data.fetched_at);
+      if (data.law_api_status === 'error') {
+        setDataBadgeWarning('🟡 법령 API 인증 확인 필요');
+      } else {
+        setDataBadge(true, data.fetched_at);
+      }
     }
   } catch (e) {
     setDataBadge(false, null);
@@ -1523,7 +1535,11 @@ function onLoginSuccess(user) {
 
 async function checkAutoLogin() {
   const token = localStorage.getItem(_AUTH_KEY);
-  if (!token) { _showLoginOverlay(); return; }
+  if (!token) {
+    if (API_BASE) await quickLogin('dept_head', {silent: true});
+    else _showLoginOverlay();
+    return;
+  }
   // 데모(정적 배포): 저장된 데모 토큰으로 세션 복원
   if (!API_BASE && token.startsWith('demo-')) {
     const u = token.slice(5);
@@ -1538,7 +1554,8 @@ async function checkAutoLogin() {
     onLoginSuccess(user);
   } catch {
     localStorage.removeItem(_AUTH_KEY);
-    _showLoginOverlay();
+    if (API_BASE) await quickLogin('dept_head', {silent: true});
+    else _showLoginOverlay();
   }
 }
 
@@ -1601,10 +1618,11 @@ async function doLogout() {
   _showLoginOverlay();
 }
 
-async function quickLogin(username) {
+async function quickLogin(username, options = {}) {
   document.getElementById('login-user').value = username;
   document.getElementById('login-pw').value = 'sfirm2026';
   await doLogin();
+  if (options.silent) document.getElementById('login-error').style.display = 'none';
 }
 
 const _DEMO_ACCOUNTS = [

@@ -6,3 +6,4 @@ anthropic>=0.40.0
 sqlalchemy==2.0.36
 python-multipart==0.0.12
 langgraph>=0.2.0
+apscheduler>=3.10.0

@@ -23,7 +23,7 @@ from app.db.models import (
 from app.services.law_api import fetcher
 from app.services.prohibition_extractor import extract_prohibitions
 from app.services.business_rule_generator import generate_rules
-from app.services.pipeline import pipeline
+from app.services.pipeline_runner import run_and_save
 
 router = APIRouter(prefix="/api/v1/clients/{client_id}/sessions/{session_id}", tags=["analysis"])
 
@@ -475,7 +475,7 @@ async def run_pipeline(
 ):
     """
     LangGraph 자율 파이프라인 실행
-    법령수집 → 금지행위추출 → 업무규칙생성 → DB저장 까지 한 번에 처리
+    법령수집 → 금지행위추출 → 업무규칙생성 → DB저장 한 번에 처리
 
     body(선택): { "law_ids": ["pipa","aiba",...] }
     """
@@ -490,27 +490,11 @@ async def run_pipeline(
     if not ds:
         raise HTTPException(400, "책무구조가 없습니다. 먼저 문서를 업로드하세요.")
 
-    law_ids = body.get("law_ids") or ["pipa", "cipa", "aiba", "efsr", "itna", "fgsl"]
+    law_ids = body.get("law_ids") or None
 
-    initial_state = {
-        "client_id":    client_id,
-        "session_id":   session_id,
-        "law_ids":      law_ids,
-        "executives":   ds.executives or [],
-        "law_diffs":    [],
-        "prohibitions": [],
-        "rules":        [],
-        "error":        None,
-        "log":          [],
-    }
-
-    session.status = "running"
-    db.commit()
-
-    config = {"configurable": {"thread_id": f"{client_id}:{session_id}"}}
     try:
         result = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: pipeline.invoke(initial_state, config=config)
+            None, lambda: run_and_save(client_id, session, ds, db, law_ids)
         )
     except Exception as e:
         session.status = "draft"
@@ -518,79 +502,9 @@ async def run_pipeline(
         raise HTTPException(500, f"파이프라인 실행 실패: {e}")
 
     if result.get("error"):
-        session.status = "draft"
-        db.commit()
         raise HTTPException(500, result["error"])
 
-    # ── 기존 결과 초기화 ──────────────────────────────────────────────────
-    for p in db.query(ProhibitedAct).filter(ProhibitedAct.session_id == session_id).all():
-        db.delete(p)
-    db.commit()
-
-    # ── 금지행위 + 매핑 저장 ──────────────────────────────────────────────
-    act_map: dict[str, ProhibitedAct] = {}
-    for item in result["prohibitions"]:
-        act = ProhibitedAct(
-            session_id=session_id,
-            law_id=item.get("law_id"),
-            law_name=item.get("law_name"),
-            article=item.get("article"),
-            name=item.get("name", ""),
-            description=item.get("description"),
-            subject=item.get("subject"),
-            target=item.get("target"),
-            trigger_condition=item.get("trigger_condition"),
-            exception=item.get("exception"),
-            priority=item.get("priority", "MEDIUM"),
-            ai_generated=True,
-            confirmed=False,
-        )
-        db.add(act)
-        db.flush()
-
-        m = item.get("mapping") or {}
-        if m.get("first_duty"):
-            db.add(DutyMapping(
-                prohibited_act_id=act.id,
-                first_duty=m.get("first_duty"),
-                second_duty=m.get("second_duty"),
-                third_duty=m.get("third_duty"),
-                mapping_note=item.get("mapping_reason"),
-                ai_generated=True,
-                confirmed=False,
-            ))
-
-        act_map[item["id"]] = act
-    db.commit()
-
-    # ── 업무규칙 저장 ─────────────────────────────────────────────────────
-    saved_rules = 0
-    for rule_item in result["rules"]:
-        act = act_map.get(rule_item.get("prohibition_id", ""))
-        if not act or not act.duty_mapping:
-            continue
-        r = BusinessRule(duty_mapping_id=act.duty_mapping.id)
-        db.add(r)
-        r.rule_code         = rule_item.get("rule_code", "")
-        r.name              = rule_item.get("name", "")
-        r.description       = rule_item.get("description")
-        r.trigger_condition = rule_item.get("trigger_condition")
-        r.actions           = rule_item.get("actions") or []
-        r.exceptions        = rule_item.get("exceptions") or []
-        r.system_guide      = rule_item.get("system_guide")
-        r.status            = "draft"
-        saved_rules += 1
-
-    session.status = "completed"
-    db.commit()
-
-    return {
-        "status":            "success",
-        "log":               result["log"],
-        "law_diff_count":    len(result["law_diffs"]),
-        "prohibition_count": len(result["prohibitions"]),
-        "rule_count":        saved_rules,
-    }
+    return {"status": "success", **result}
 
 
 @router.put("/rules/{rule_id}")

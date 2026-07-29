@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -18,6 +19,7 @@ from app.api import improvement as improvement_router
 from app.api import reports as reports_router
 from app.api import templates as templates_router
 from app.api import auth as auth_router
+from app.services.scheduler import create_scheduler
 
 load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")), override=True)
 
@@ -26,7 +28,15 @@ _BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _FRONTEND_INDEX = os.path.join(_BASE_DIR, "frontend", "index.html")
 _DOCS_DIR = os.path.join(_BASE_DIR, "docs")
 
-app = FastAPI(title="S-FIRM Compliance API", version="2.0")
+_scheduler = create_scheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _scheduler.start()
+    yield
+    _scheduler.shutdown()
+
+app = FastAPI(title="S-FIRM Compliance API", version="2.0", lifespan=lifespan)
 
 # DB 테이블 생성 + 초기 데이터 시드 (앱 시작 시 1회)
 init_db()

@@ -372,6 +372,18 @@
   <!-- TAB 2: 금지행위 추출 -->
   <div id="view-prohibit" class="fade-in hidden">
 
+    <!-- 파이프라인 실행 버튼 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:12px;padding:12px 18px;margin-bottom:16px;gap:12px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#5B21B6;margin-bottom:2px;">⚡ 자율 파이프라인</div>
+        <div style="font-size:11px;color:#7C3AED;">법령수집 → 금지행위추출 → 업무규칙생성 전 단계 자동 실행 · 매일 새벽 6시 자동 실행</div>
+      </div>
+      <button id="btn-pipeline" onclick="runFullPipeline()"
+        style="flex-shrink:0;padding:9px 22px;background:#7C3AED;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+        ⚡ 전체 실행
+      </button>
+    </div>
+
     <!-- ① 자동 추출 상태 배너 -->
     <div id="auto-extract-banner" style="display:none;background:#FFF7ED;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px;">
       <span id="auto-extract-msg" style="font-size:12px;color:#92400E;font-weight:600;"></span>
@@ -2809,6 +2821,41 @@ function toggleExpand() {
   const open = body.style.display === 'none';
   body.style.display = open ? '' : 'none';
   arrow.textContent  = open ? '˅' : '›';
+}
+
+let _pipelineRunning = false;
+async function runFullPipeline() {
+  if (_pipelineRunning) return;
+  if (!ACTIVE_CLIENT_ID || !ACTIVE_SESSION_ID) { showToast('고객사 및 세션을 선택하세요.'); return; }
+
+  _pipelineRunning = true;
+  const btn = document.getElementById('btn-pipeline');
+  if (btn) { btn.textContent = '⏳ 실행 중...'; btn.disabled = true; }
+  _setBanner('⏳ 파이프라인 실행 중... 법령수집 → 금지행위추출 → 업무규칙생성 (1~2분 소요)', '#1E40AF', '#EFF6FF', '#3B82F6');
+
+  try {
+    const resp = await fetch(
+      `${API_BASE}/api/v1/clients/${ACTIVE_CLIENT_ID}/sessions/${ACTIVE_SESSION_ID}/pipeline/run`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}', signal: AbortSignal.timeout(300000) }
+    );
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || '파이프라인 실패');
+
+    _setBanner(
+      `✅ 파이프라인 완료 — 법령 ${data.law_diff_count}건 · 금지행위 ${data.prohibition_count}건 · 업무규칙 ${data.rule_count}건`,
+      '#065F46', '#F0FDF4', '#10B981'
+    );
+    showToast(`✅ 파이프라인 완료 — 금지행위 ${data.prohibition_count}건 · 업무규칙 ${data.rule_count}건`);
+    _prohibLoaded = false;
+    await loadProhibitions(true);
+    renderProhibit();
+  } catch (e) {
+    _setBanner(`❌ 파이프라인 실패: ${e.message}`, '#991B1B', '#FEF2F2', '#EF4444');
+    showToast(`❌ ${e.message}`);
+  } finally {
+    _pipelineRunning = false;
+    if (btn) { btn.textContent = '⚡ 전체 실행'; btn.disabled = false; }
+  }
 }
 
 let _extracting = false;

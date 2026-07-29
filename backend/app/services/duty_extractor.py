@@ -21,14 +21,14 @@ _SYSTEM = """당신은 금융회사 책무구조도 분석 전문가입니다.
 업로드된 문서 텍스트에서 임원별 책무 구조를 추출해 JSON으로 반환하세요.
 반드시 유효한 JSON만 출력하고, 설명 텍스트·주석은 포함하지 마세요."""
 
-_PROMPT_FULL = """아래는 금융회사의 책무구조 관련 문서 전체 내용입니다.
+_PROMPT_FULL_DOC = """아래는 금융회사의 책무구조 관련 문서 전체 내용입니다.
 (책무기술서·책무체계도·책무현황표 등이 혼합되어 있을 수 있습니다)
 
 ---
 {text}
----
+---"""
 
-## 추출 지침
+_PROMPT_FULL_INSTR = """## 추출 지침
 
 1. **임원(직책) 식별**
    - 직책명(대표이사, 준법감시인, CRO, CPO 등)과 성명을 최대한 추출
@@ -40,29 +40,29 @@ _PROMPT_FULL = """아래는 금융회사의 책무구조 관련 문서 전체 �
    - 책무 설명은 문서에 나온 원문 그대로 사용
 
 3. **출력 형식** — 아래 JSON 스키마를 엄격히 준수
-{{
+{
   "company_name": "회사명 또는 null",
   "duty_code_system": "ABC" | "standard" | "mixed",
   "executives": [
-    {{
+    {
       "role":      "직책명 (예: 대표이사, 준법감시인, A레벨 지정책임자)",
       "role_code": "문서 내 코드 또는 표준 영문코드 (예: A, B, CEO, CCO)",
       "std_code":  "표준 영문코드로 매핑 가능하면 기재 (CEO/CCO/CRO/CPO/CISO/CDO/CFO), 불가 시 null",
       "level":     3,
       "name":      "성명 또는 null",
       "duties": [
-        {{"code": "A1", "description": "책무 원문 내용"}},
-        {{"code": "A2", "description": "책무 원문 내용"}}
+        {"code": "A1", "description": "책무 원문 내용"},
+        {"code": "A2", "description": "책무 원문 내용"}
       ],
       "parent_role": "상위 role_code 또는 null"
-    }}
+    }
   ],
-  "org_tree": {{
+  "org_tree": {
     "A": ["B", "C"],
     "B": ["D"]
-  }},
+  },
   "summary": "책무구조 전체 요약 2~3문장"
-}}
+}
 
 executives 배열은 레벨 높은 순(3→1)으로 정렬하세요.
 실제 문서에 있는 임원/직책만 포함하고, 없는 직책은 추가하지 마세요."""
@@ -112,12 +112,24 @@ _PROMPT_MERGE = """아래는 여러 청크에서 추출한 임원-책무 데이�
 }}"""
 
 
-def _call_claude(client: anthropic.Anthropic, prompt: str, max_tokens: int = 4096) -> str:
+def _call_claude(
+    client: anthropic.Anthropic,
+    prompt: str,
+    max_tokens: int = 4096,
+    cached_doc: str | None = None,
+) -> str:
+    if cached_doc is not None:
+        content = [
+            {"type": "text", "text": cached_doc, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
     msg = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=max_tokens,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
+        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": content}],
     )
     return msg.content[0].text.strip()
 
@@ -138,7 +150,12 @@ def extract_duty_structure(text: str) -> dict:
 
     if len(text) <= _SINGLE_PASS_LIMIT:
         # ── 단일 호출 (전체 문서를 한 번에) ─────────────────────────────
-        raw = _call_claude(client, _PROMPT_FULL.format(text=text), max_tokens=4096)
+        raw = _call_claude(
+            client,
+            _PROMPT_FULL_INSTR,
+            max_tokens=4096,
+            cached_doc=_PROMPT_FULL_DOC.format(text=text),
+        )
         try:
             return _parse_json(raw)
         except json.JSONDecodeError as e:

@@ -76,7 +76,7 @@ def _generate_for_group(
     msg = client.messages.create(
         model=_MODEL,
         max_tokens=4096,
-        system=_SYSTEM,
+        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
     )
     return _parse_json(msg.content[0].text.strip())

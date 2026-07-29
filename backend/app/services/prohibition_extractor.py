@@ -14,14 +14,13 @@ _MODEL = "claude-haiku-4-5-20251001"
 
 _SYSTEM = """금융 컴플라이언스 전문가로서, 변경된 법령 조문에서 금지행위를 추출하고 담당 임원을 매핑하여 JSON 배열로만 반환하세요. 설명 텍스트 없이 JSON만 출력하세요."""
 
-_PROMPT_TMPL = """## 변경 조문
+_DUTY_PREFIX = "## 임원 책무\n{duty_text}"
+
+_LAW_TMPL = """## 변경 조문
 {law_text}
 
-## 임원 책무
-{duty_text}
-
 ## 지시
-각 조문에서 금지행위를 추출하고 담당 임원을 매핑하세요.
+각 조문에서 금지행위를 추출하고 위의 임원 책무를 참고해 담당 임원을 매핑하세요.
 JSON 배열만 출력 (다른 텍스트 없음):
 [{{"law_id":"","law_name":"","article":"","name":"","description":"","subject":"","target":"","trigger_condition":"","exception":"없음","priority":"HIGH|MEDIUM|LOW","first_duty":"","second_duty":"","third_duty":"","mapping_reason":""}}]
 
@@ -82,10 +81,20 @@ def _extract_for_law(
     message = client.messages.create(
         model=_MODEL,
         max_tokens=4096,
-        system=_SYSTEM,
+        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{
             "role": "user",
-            "content": _PROMPT_TMPL.format(law_text=law_text, duty_text=duty_text)
+            "content": [
+                {
+                    "type": "text",
+                    "text": _DUTY_PREFIX.format(duty_text=duty_text),
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {
+                    "type": "text",
+                    "text": _LAW_TMPL.format(law_text=law_text),
+                },
+            ],
         }],
     )
     raw = message.content[0].text.strip()

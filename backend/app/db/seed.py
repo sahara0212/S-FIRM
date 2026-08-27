@@ -5,7 +5,8 @@ pre-computed 금지행위 + 업무규칙을 포함하여 탭 진입 즉시 데�
 import hashlib
 from datetime import datetime
 from app.db.database import SessionLocal
-from app.db.models import Client, AnalysisSession, DutyStructure, ProhibitedAct, DutyMapping, BusinessRule, User
+from app.db.models import (Client, AnalysisSession, DutyStructure, ProhibitedAct, DutyMapping,
+                           BusinessRule, User, InspectionCheck, ImprovementAction, QuarterlyReport)
 
 
 def _hash(pw: str) -> str:
@@ -135,5 +136,82 @@ def seed_initial_data() -> None:
                 ))
         db.commit()
 
+        # 6. 시연용 이행점검 진행 상태 (재배포로 DB가 초기화돼도 복원)
+        _seed_demo_progress(db)
+
     finally:
         db.close()
+
+
+def _seed_demo_progress(db) -> None:
+    """이행점검·개선조치·분기보고서 시연 데이터.
+
+    Railway 컨테이너의 SQLite는 재배포마다 초기화되므로, 대시보드가 빈 화면으로
+    보이지 않도록 기동 시 현재 월 기준 진행 상태를 복원한다. 이미 있으면 건너뛴다.
+    """
+    now    = datetime.utcnow()
+    period = f"{now.year}-{now.month:02d}"
+    if db.query(InspectionCheck).filter(
+        InspectionCheck.client_id == _CLIENT_ID,
+        InspectionCheck.period == period,
+    ).first():
+        return
+
+    rules = (
+        db.query(BusinessRule)
+        .join(DutyMapping, BusinessRule.duty_mapping_id == DutyMapping.id)
+        .join(ProhibitedAct, DutyMapping.prohibited_act_id == ProhibitedAct.id)
+        .filter(ProhibitedAct.session_id == _SESSION_ID)
+        .order_by(BusinessRule.rule_code)
+        .all()
+    )
+    if not rules:
+        return
+
+    # 적정 11 · 개선필요 3 · 해당없음 1 · 미점검 나머지
+    plan  = ["적정"] * 11 + ["개선필요"] * 3 + ["해당없음"] * 1
+    notes = {
+        "적정":     "정기 점검 결과 기준 충족 확인",
+        "개선필요": "일부 절차 미흡 — 시정 요구",
+        "해당없음": "해당 업무 미영위",
+    }
+    checks = []
+    for i, (rule, result) in enumerate(zip(rules, plan)):
+        chk = InspectionCheck(
+            client_id=_CLIENT_ID, rule_id=rule.id, period=period,
+            result=result,
+            method="해당없음" if result == "해당없음" else ("대면" if i % 2 == 0 else "비대면"),
+            note=notes[result], checked_by="김준법 (준법담당)", checked_at=now,
+        )
+        db.add(chk); checks.append((chk, rule, result))
+    db.flush()
+
+    # 개선필요 → 개선조치
+    plans = [
+        ("절차 보완 및 담당자 재교육 실시", "진행중"),
+        ("점검 주기 단축과 체크리스트 개정",  "미완료"),
+        ("시스템 통제 항목 추가 반영",        "진행중"),
+    ]
+    idx = 0
+    for chk, rule, result in checks:
+        if result != "개선필요":
+            continue
+        plan_text, status = plans[idx % len(plans)]
+        db.add(ImprovementAction(
+            client_id=_CLIENT_ID, check_id=chk.id, rule_id=rule.id,
+            origin_period=period, title=f"{rule.name} 개선",
+            cause="점검 결과 일부 절차 미흡 확인",
+            action_plan=plan_text, action_type="이행점검조치", status=status,
+        ))
+        idx += 1
+
+    # 분기 보고서 (작성중)
+    q  = (now.month - 1) // 3 + 1
+    qs = (q - 1) * 3 + 1
+    db.add(QuarterlyReport(
+        client_id=_CLIENT_ID, quarter=f"{now.year}-Q{q}",
+        period_from=f"{now.year}-{qs:02d}", period_to=f"{now.year}-{qs + 2:02d}",
+        status="작성중",
+        note=f"{now.year}년 {q}분기 책무구조도 이행점검 결과 보고",
+    ))
+    db.commit()

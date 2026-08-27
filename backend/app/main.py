@@ -118,6 +118,7 @@ def get_law_monitoring(
     - from_date / to_date: 직접 기간 지정 (YYYY-MM-DD), 입력 시 days 무시
     """
     cache_key = f"{from_date or ''}_{to_date or ''}_{days}"
+    fetcher.reset_circuit()
     try:
         core    = fetcher.fetch_monitoring_data(days=days, from_date=from_date, to_date=to_date)
         related = fetcher.fetch_related_data(days=days, from_date=from_date, to_date=to_date)

@@ -13,6 +13,7 @@ class LawMonitoringFetcher:
     API_KEY  = os.getenv("OPEN_API_KEY", "sahara0212")
     LAW_BASE = "https://www.law.go.kr/DRF"
     last_error: str | None = None
+    _conn_fail: int = 0
 
     # 모니터링 대상 핵심 법령
     TARGET_LAWS = [
@@ -33,12 +34,21 @@ class LawMonitoringFetcher:
     ]
 
     # ── 내부 HTTP 헬퍼 ─────────────────────────────────────────────────────
+    def reset_circuit(self) -> None:
+        """요청 1회분 시작 시 호출. 연결 장애 카운터를 초기화한다."""
+        self._conn_fail = 0
+
     def _get_xml(self, endpoint, params: dict):
+        # 네트워크가 끊긴 곳(터널·지하 등)에서 법령이 10개 넘게 순차 호출되면
+        # 타임아웃이 누적돼 화면이 수십 초 멈춘다. 연결 자체가 2회 실패하면
+        # 남은 호출은 즉시 포기하고 캐시로 넘긴다.
+        if getattr(self, "_conn_fail", 0) >= 2:
+            return None
         try:
             resp = requests.get(
                 f"{self.LAW_BASE}/{endpoint}",
                 params={**params, "OC": self.API_KEY, "type": "XML"},
-                timeout=8,
+                timeout=5,
             )
             if resp.status_code == 200:
                 root = ET.fromstring(resp.content)
@@ -52,6 +62,7 @@ class LawMonitoringFetcher:
                 return root
             self.last_error = f"HTTP {resp.status_code}"
         except Exception as e:
+            self._conn_fail = getattr(self, "_conn_fail", 0) + 1
             self.last_error = str(e)
             print(f"[LawAPI] {endpoint} 오류: {e}")
         return None

@@ -1437,9 +1437,12 @@ async function loadFromAPI() {
           if (idx >= 0) RELATED_LAWS[idx].changes = r.changes;
         }
       }
-      if (data.law_api_status === 'error') {
+      if (data.law_api_status === 'cached') {
+        // 미등록 망(테더링 등)에서는 마지막으로 수집한 실데이터를 그대로 사용한다.
+        setDataBadgeWarning(`🟡 최근 수집 데이터 · ${data.fetched_at || ''} 기준`);
+      } else if (data.law_api_status === 'error') {
         // 법령정보센터 OPEN API는 호출 서버의 IP·도메인 사전 등록이 필요하다.
-        // 등록 전에는 기준 법령 목록(fallback)으로 화면을 구성한다.
+        // 등록 전이고 캐시도 없으면 기준 법령 목록으로 화면을 구성한다.
         setDataBadgeWarning('🟡 기준 법령 표시 중 · 실시간 연동 준비');
       } else {
         setDataBadge(true, data.fetched_at);

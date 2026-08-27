@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -69,6 +70,42 @@ def read_index():
     return FileResponse(_FRONTEND_INDEX)
 
 
+# ── 법령 데이터 디스크 캐시 ────────────────────────────────────────────────
+# 법제처 OPEN API는 호출 서버의 IP 사전 등록이 필요하다. 등록된 망에서 한 번
+# 수집해 두면, 미등록 망(테더링 등)에서도 마지막 수집분을 그대로 보여준다.
+_LAW_CACHE_DIR = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")), "data"
+)
+
+def _law_cache_path(key: str) -> str:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in key)
+    return os.path.join(_LAW_CACHE_DIR, f"law_cache_{safe}.json")
+
+def _save_law_cache(key: str, payload: dict) -> None:
+    try:
+        os.makedirs(_LAW_CACHE_DIR, exist_ok=True)
+        with open(_law_cache_path(key), "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[LawCache] 저장 실패: {e}")
+
+# 저장소에 포함되는 시드 캐시 — 등록된 망에서 수집해 커밋해 둔다.
+# Railway처럼 IP가 등록되지 않은 환경에서도 실제 법령 데이터를 표시하기 위함.
+_LAW_SEED_CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "law_cache")
+
+def _load_law_cache(key: str) -> Optional[dict]:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in key)
+    for path in (_law_cache_path(key),
+                 os.path.join(_LAW_SEED_CACHE_DIR, f"law_cache_{safe}.json")):
+        try:
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"[LawCache] 읽기 실패 {path}: {e}")
+    return None
+
+
 @app.get("/api/v1/law-monitoring")
 def get_law_monitoring(
     days: int = Query(default=7, ge=1, le=365),
@@ -80,14 +117,32 @@ def get_law_monitoring(
     - days: 최근 N일 (기본 7)
     - from_date / to_date: 직접 기간 지정 (YYYY-MM-DD), 입력 시 days 무시
     """
+    cache_key = f"{from_date or ''}_{to_date or ''}_{days}"
     try:
         core    = fetcher.fetch_monitoring_data(days=days, from_date=from_date, to_date=to_date)
         related = fetcher.fetch_related_data(days=days, from_date=from_date, to_date=to_date)
         has_live_source = any(item.get("source") == "live" for item in core.values())
+
+        if has_live_source:
+            payload = {
+                "status": "live", "law_api_status": "live", "law_api_message": "",
+                "core": core, "related": related,
+                "fetched_at": core[next(iter(core))]["last_fetched"] if core else "",
+            }
+            _save_law_cache(cache_key, payload)
+            return JSONResponse(payload)
+
+        # 실시간 호출 실패 — 마지막으로 수집한 데이터가 있으면 그대로 사용한다.
+        cached = _load_law_cache(cache_key)
+        if cached:
+            cached["law_api_status"]  = "cached"
+            cached["law_api_message"] = fetcher.last_error or ""
+            return JSONResponse(cached)
+
         return JSONResponse({
             "status":  "live",
-            "law_api_status": "live" if has_live_source else "error",
-            "law_api_message": "" if has_live_source else (fetcher.last_error or "법령정보센터 데이터를 가져오지 못했습니다."),
+            "law_api_status": "error",
+            "law_api_message": fetcher.last_error or "법령정보센터 데이터를 가져오지 못했습니다.",
             "core":    core,
             "related": related,
             "fetched_at": core[next(iter(core))]["last_fetched"] if core else "",

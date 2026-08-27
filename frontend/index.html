@@ -4158,6 +4158,15 @@ function initInspectionPeriod() {
   }
 }
 
+// 실제 모드: 백엔드에 wf_step 컬럼이 없으므로 점검 결과(result)로 워크플로우 단계를 유도한다.
+//   적정·해당없음 → 3(최종 승인 완료) / 개선필요 → 2(부서장 확인, 개선 대기) / 미점검 → 0
+function applyWfStep(item) {
+  if (item.wf_step !== undefined && item.wf_step !== null) return item;
+  const r = item.result;
+  item.wf_step = (r === '적정' || r === '해당없음') ? 3 : (r === '개선필요') ? 2 : 0;
+  return item;
+}
+
 async function loadInspection() {
   const sel = document.getElementById('insp-period-select');
   const period = sel?.value;
@@ -4189,7 +4198,7 @@ async function loadInspection() {
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    _inspCache = data.items || [];
+    _inspCache = (data.items || []).map(applyWfStep);
     renderInspectionSummary(data.summary || {});
     renderInspectionList();
   } catch(e) {

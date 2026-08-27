@@ -1939,7 +1939,7 @@ function renderDashboard() {
   const imprEl = document.getElementById('db-improvement');
   if (imprEl) {
     const clientId = (typeof ACTIVE_CLIENT_ID !== 'undefined' ? ACTIVE_CLIENT_ID : null) || _CLIENT_ID_FALLBACK;
-    fetch(`${API_BASE}/api/v1/improvement/actions?client_id=${clientId}`)
+    fetch(`${API_BASE}/api/v1/improvement/${clientId}`)
       .then(r => r.ok ? r.json() : []).then(actions => {
         if (!Array.isArray(actions)) actions = [];
         const done    = actions.filter(a => a.status === '완료').length;

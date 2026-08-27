@@ -91,7 +91,7 @@ def _save_law_cache(key: str, payload: dict) -> None:
 
 # 저장소에 포함되는 시드 캐시 — 등록된 망에서 수집해 커밋해 둔다.
 # Railway처럼 IP가 등록되지 않은 환경에서도 실제 법령 데이터를 표시하기 위함.
-_LAW_SEED_CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "law_cache")
+_LAW_SEED_CACHE_DIR = os.path.join(os.path.dirname(__file__), "law_cache_seed")
 
 def _load_law_cache(key: str) -> Optional[dict]:
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in key)

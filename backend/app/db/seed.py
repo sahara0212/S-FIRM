@@ -4,6 +4,7 @@ pre-computed 금지행위 + 업무규칙을 포함하여 탭 진입 즉시 데�
 """
 import hashlib
 from datetime import datetime
+from app.db.citation_corrections import apply_citation_corrections
 from app.db.database import SessionLocal
 from app.db.models import (Client, AnalysisSession, DutyStructure, ProhibitedAct, DutyMapping,
                            BusinessRule, User, InspectionCheck, ImprovementAction, QuarterlyReport)
@@ -123,6 +124,9 @@ def seed_initial_data() -> None:
                     db.add(rule)
 
             db.commit()
+
+        # 4-1. 근거 조문 교정 (새 DB·기존 DB 모두, 사용자가 수정한 항목은 제외)
+        apply_citation_corrections(db)
 
         # 5. 데모 사용자
         for u in _DEMO_USERS:

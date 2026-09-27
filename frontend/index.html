@@ -155,7 +155,7 @@
     <!-- 고객사 전환 -->
     <button class="client-switcher-btn" onclick="openClientManager()" title="고객사 전환" style="flex-shrink:0;">
       <span id="client-switcher-icon">🏢</span>
-      <span class="client-switcher-name" id="client-switcher-name">KB라이프생명</span>
+      <span class="client-switcher-name" id="client-switcher-name">레퍼런스 생명보험사</span>
       <span style="color:#9CA3AF;font-size:10px;margin-left:2px;">▾</span>
     </button>
 
@@ -186,7 +186,7 @@
           <span id="user-display-name"></span>
           <span style="font-size:9px;opacity:0.5;">▾</span>
         </button>
-        <a href="/docs/sfirm-manual-v2.pdf" download="S-FIRM_사용자매뉴얼_v2.0.pdf" title="사용자 매뉴얼 다운로드"
+        <a id="manual-link" href="/docs/sfirm-manual-v2.pdf" download="S-FIRM_사용자매뉴얼_v2.0.pdf" title="사용자 매뉴얼 다운로드"
           style="font-size:10px;font-weight:700;color:#4F46E5;background:none;border:1px solid #C7D2FE;border-radius:6px;padding:3px 8px;cursor:pointer;transition:all 0.15s;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"
           onmouseover="this.style.background='#EEF2FF';this.style.borderColor='#A5B4FC'" onmouseout="this.style.background='none';this.style.borderColor='#C7D2FE'">
           📄 매뉴얼
@@ -665,7 +665,7 @@
     <div id="onboard-step-1" class="wizard-section" style="padding:16px 24px 24px;">
       <div style="margin-bottom:14px;">
         <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">금융회사명 <span style="color:#EF4444;">*</span></label>
-        <input id="ob-name" type="text" placeholder="예: 한화손해보험" style="width:100%;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:600;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='#6366F1'" onblur="this.style.borderColor='#E5E7EB'">
+        <input id="ob-name" type="text" placeholder="예: OO손해보험" style="width:100%;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:13px;font-weight:600;outline:none;transition:border 0.15s;" onfocus="this.style.borderColor='#6366F1'" onblur="this.style.borderColor='#E5E7EB'">
       </div>
       <div style="margin-bottom:20px;">
         <label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:8px;">업권 선택 <span style="color:#EF4444;">*</span></label>
@@ -1040,14 +1040,14 @@ function allRecentChanges() {
 const LAW_CHANGE_MAPPINGS = {};
 
 // ── 실데이터 연결 설정 ──────────────────────────────
-// KB라이프생명 레퍼런스 시드 (seed.py 기본값, 변경 금지)
-const KB_SEED_CLIENT_ID  = '2c3c2685-63ff-48a6-a0d4-58e507d1485d';
-const KB_SEED_SESSION_ID = '0290acaa-133d-4f32-a473-0fcecb3d4bc3';
-const KB_SEED_CLIENT = { id: KB_SEED_CLIENT_ID, name: 'KB라이프생명', industry: '보험(생보)' };
+// 레퍼런스 시드 고객사 (seed.py 기본값, 변경 금지)
+const REF_SEED_CLIENT_ID  = '2c3c2685-63ff-48a6-a0d4-58e507d1485d';
+const REF_SEED_SESSION_ID = '0290acaa-133d-4f32-a473-0fcecb3d4bc3';
+const REF_SEED_CLIENT = { id: REF_SEED_CLIENT_ID, name: '레퍼런스 생명보험사', industry: '보험(생보)' };
 
-let ACTIVE_CLIENT_ID  = KB_SEED_CLIENT_ID;
-let ACTIVE_SESSION_ID = KB_SEED_SESSION_ID;
-let _activeClientInfo = { ...KB_SEED_CLIENT };
+let ACTIVE_CLIENT_ID  = REF_SEED_CLIENT_ID;
+let ACTIVE_SESSION_ID = REF_SEED_SESSION_ID;
+let _activeClientInfo = { ...REF_SEED_CLIENT };
 let _allClients = [];  // 전체 고객사 목록 캐시
 let _obCreatedClientId = null;  // 온보딩으로 생성된 고객사 ID
 let _obCreatedDocId = null;     // 업로드된 문서 ID
@@ -1364,6 +1364,11 @@ function toggleDemoMode() {
   else if (active === 'report') loadReport();
 }
 
+// 매뉴얼 PDF는 공개 저장소에 두지 않으므로, 배포 환경에 없으면 버튼을 숨긴다.
+fetch('/docs/sfirm-manual-v2.pdf', { method: 'HEAD' })
+  .then(r => { if (!r.ok) document.getElementById('manual-link')?.remove(); })
+  .catch(() => document.getElementById('manual-link')?.remove());
+
 // 1차 책임자 선택 시 자동 체인
 const EXEC_CHAIN = {
   CPO:  { second:'CCO', third:'CEO' },
@@ -1371,7 +1376,10 @@ const EXEC_CHAIN = {
   CDO:  { second:'CRO', third:'CEO' },
   CCO:  { second:'CRO', third:'CEO' },
   CRO:  { second:'CCO', third:'CEO' },
-  CFO:  { second:'CRO', third:'CEO' }
+  CFO:  { second:'CRO', third:'CEO' },
+  CIO:  { second:'CISO', third:'CEO' },
+  CSO:  { second:'CCO', third:'CEO' },
+  BIZ_HEAD: { second:'CCO', third:'CEO' }
 };
 
 // ═══════════════════════════════════════
@@ -4821,30 +4829,30 @@ function renderClientList() {
   const area = document.getElementById('client-list-area');
   if (!area) return;
 
-  // KB라이프 레퍼런스 고정 카드 (항상 상단 표시)
-  const kbIsActive = ACTIVE_CLIENT_ID === KB_SEED_CLIENT_ID;
-  const kbInList   = _allClients.some(c => c.id === KB_SEED_CLIENT_ID);
-  const kbCard     = _clientCardHtml({ ...KB_SEED_CLIENT, session_count: undefined }, kbIsActive, true);
+  // 레퍼런스 시드 고정 카드 (항상 상단 표시)
+  const refIsActive = ACTIVE_CLIENT_ID === REF_SEED_CLIENT_ID;
+  const refInList   = _allClients.some(c => c.id === REF_SEED_CLIENT_ID);
+  const refCard     = _clientCardHtml({ ...REF_SEED_CLIENT, session_count: undefined }, refIsActive, true);
 
-  // 나머지 고객사 (KB라이프 시드 제외)
-  const others = _allClients.filter(c => c.id !== KB_SEED_CLIENT_ID);
+  // 나머지 고객사 (레퍼런스 시드 제외)
+  const others = _allClients.filter(c => c.id !== REF_SEED_CLIENT_ID);
   const otherCards = others.map(c => _clientCardHtml(c, c.id === ACTIVE_CLIENT_ID, false)).join('');
 
   const divider = others.length
     ? `<div style="font-size:10px;font-weight:700;color:#D1D5DB;text-transform:uppercase;letter-spacing:0.08em;margin:4px 0 8px;">등록 고객사</div>`
     : `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:12px 0 4px;">추가된 고객사가 없습니다.</div>`;
 
-  area.innerHTML = kbCard + divider + otherCards;
+  area.innerHTML = refCard + divider + otherCards;
 }
 
 // ── 고객사 전환 ───────────────────────────────────────────────
 async function switchClient(client) {
   if (client.id === ACTIVE_CLIENT_ID) { closeClientManager(); return; }
 
-  // KB라이프 시드로 돌아가는 경우: 고정 세션 ID 사용
+  // 레퍼런스 시드로 돌아가는 경우: 고정 세션 ID 사용
   let sessionId = null;
-  if (client.id === KB_SEED_CLIENT_ID) {
-    sessionId = KB_SEED_SESSION_ID;
+  if (client.id === REF_SEED_CLIENT_ID) {
+    sessionId = REF_SEED_SESSION_ID;
   } else {
     // 해당 고객사의 최신 세션 조회
     try {

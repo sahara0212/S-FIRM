@@ -7,7 +7,8 @@ _BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 _DB_PATH  = os.path.join(_BASE_DIR, "data", "sfirm.db")
 os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
 
-DATABASE_URL = f"sqlite:///{_DB_PATH}"
+# 테스트·운영 환경에서 DB를 분리할 수 있도록 환경변수를 우선한다.
+DATABASE_URL = os.getenv("SFIRM_DATABASE_URL", f"sqlite:///{_DB_PATH}")
 
 engine = create_engine(
     DATABASE_URL,

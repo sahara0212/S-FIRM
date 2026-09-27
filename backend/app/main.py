@@ -20,6 +20,7 @@ from app.api import improvement as improvement_router
 from app.api import reports as reports_router
 from app.api import templates as templates_router
 from app.api import auth as auth_router
+from app.api import grc_import as grc_import_router
 from app.services.scheduler import create_scheduler
 
 load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")), override=True)
@@ -52,6 +53,7 @@ app.include_router(inspection_router.router)
 app.include_router(improvement_router.router)
 app.include_router(reports_router.router)
 app.include_router(templates_router.router)
+app.include_router(grc_import_router.router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -35,3 +35,11 @@ Thumbs.db
 data/
 backend/sfirm.db
 backend/.venv
+
+# 공개 저장소: 매뉴얼·고객 문서·오피스 파일은 커밋하지 않는다
+docs/*.pdf
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.hwp
